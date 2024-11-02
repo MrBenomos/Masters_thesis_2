@@ -515,7 +515,7 @@ bool CGeneticAlgorithm::GetVarAndGen(QString& str_, QString& strError_) const
    return GetAllGenerations(str_, strError_);
 }
 
-void CGeneticAlgorithm::Start(unsigned int CountIndividuals_, size_t CountIterations_, bool UseMutation_, unsigned int Percent_)
+void CGeneticAlgorithm::Start(unsigned int CountIndividuals_, size_t CountIterations_, bool UseMutation_, unsigned int Percent_, unsigned int CountSkipMutation_)
 {
    if (UseMutation_ && Percent_ == 0)
       UseMutation_ = false;
@@ -555,7 +555,7 @@ void CGeneticAlgorithm::Start(unsigned int CountIndividuals_, size_t CountIterat
       }
 
       // Мутация (отключена для последних итераций)
-      if (UseMutation_ && iGeneration < CountIterations_ - 1)
+      if (UseMutation_ && iGeneration < CountIterations_ - CountSkipMutation_)
          for (auto& individ : children)
             Mutation(individ, 0.01 * Percent_);
 
@@ -565,7 +565,10 @@ void CGeneticAlgorithm::Start(unsigned int CountIndividuals_, size_t CountIterat
       // Отправляем сигнал о проценте выполнения.
       // +1 не делаю умышленно, чтобы последняя итерация не была = 100.
       if (percentagePerIteration * iGeneration > percentageCompleted)
-         Q_EMIT signalProgressUpdate(++percentageCompleted);
+      {
+         percentageCompleted = percentagePerIteration * iGeneration;
+         Q_EMIT signalProgressUpdate(percentageCompleted);
+      }
    }
 
    // Сортируем в порядке убывания
@@ -574,11 +577,11 @@ void CGeneticAlgorithm::Start(unsigned int CountIndividuals_, size_t CountIterat
    Q_EMIT signalProgressUpdate(100);
 }
 
-void CGeneticAlgorithm::StartForThread(unsigned int CountIndividuals_, size_t CountIterations_, bool UseMutation, unsigned int Percent_)
+void CGeneticAlgorithm::StartForThread(unsigned int CountIndividuals_, size_t CountIterations_, bool UseMutation_, unsigned int Percent_, unsigned int CountSkipMutation_)
 {
    try
    {
-      Start(CountIndividuals_, CountIterations_, UseMutation, Percent_);
+      Start(CountIndividuals_, CountIterations_, UseMutation_, Percent_, CountSkipMutation_);
    }
    catch (const QString strError)
    {

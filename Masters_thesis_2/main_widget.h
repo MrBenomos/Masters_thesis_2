@@ -23,6 +23,8 @@ private slots:
    void onUpload();
    void onStart();
    void onShowData();
+   void onCheckStateChanged(int value_);
+   void onSpinBoxValueChanged(int value_);
 
    void onUpdateProgress(int progress_);
    void onShowError(const QString& messege_);

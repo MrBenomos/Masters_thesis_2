@@ -17,6 +17,8 @@ MainWidget::MainWidget(QWidget *parent) :
     connect(ui->pbUpload, &QPushButton::clicked, this, &MainWidget::onUpload);
     connect(ui->pbStart, &QPushButton::clicked, this, &MainWidget::onStart);
     connect(ui->pbShowData, &QPushButton::clicked, this, &MainWidget::onShowData);
+    connect(ui->cbSkipMutations, &QCheckBox::stateChanged, this, &MainWidget::onCheckStateChanged);
+    connect(ui->sbIterations, &QSpinBox::valueChanged, this, &MainWidget::onSpinBoxValueChanged);
 
     connect(&m_algorithm, &CGeneticAlgorithm::signalProgressUpdate, this, &MainWidget::onUpdateProgress);
     connect(&m_algorithm, &CGeneticAlgorithm::signalError, this, &MainWidget::onShowError);
@@ -60,7 +62,15 @@ void MainWidget::onStart()
    QThread* thread = new QThread();
    m_algorithm.moveToThread(thread);
 
-   connect(thread, &QThread::started, [&]() {m_algorithm.StartForThread(ui->sbIndivids->value(), ui->sbIterations->value(), ui->gbMutation->isChecked(), ui->sbMutation->value()); });
+   connect(thread, &QThread::started, [&]()
+      {
+         m_algorithm.StartForThread(ui->sbIndivids->value(),
+            ui->sbIterations->value(),
+            ui->gbMutation->isChecked(),
+            ui->sbMutation->value(),
+            ui->cbSkipMutations->isChecked() ? ui->sbSkipMutations->value() : 0);
+      }
+   );
    connect(thread, &QThread::finished, thread, &QThread::deleteLater);
    connect(&m_algorithm, &CGeneticAlgorithm::signalEnd, thread, &QThread::quit);
 
@@ -95,6 +105,30 @@ void MainWidget::onShowData()
 
    if (m_dlgViewer->isMinimized())
       m_dlgViewer->showNormal();
+}
+
+void MainWidget::onCheckStateChanged(int value_)
+{
+   QCheckBox* pSender = qobject_cast<QCheckBox*>(sender());
+   if (!pSender)
+      return;
+
+   if (pSender == ui->cbSkipMutations)
+   {
+      ui->sbSkipMutations->setEnabled(value_);
+   }
+}
+
+void MainWidget::onSpinBoxValueChanged(int value_)
+{
+   QSpinBox* pSender = qobject_cast<QSpinBox*>(sender());
+   if (!pSender)
+      return;
+
+   if (pSender == ui->sbIterations)
+   {
+      ui->sbSkipMutations->setMaximum(value_);
+   }
 }
 
 void MainWidget::onUpdateProgress(int progress_)

@@ -71,9 +71,9 @@ public:
    // Формирует строку с переменными и всеми поколениями, return true - успешно.
    bool GetVarAndGen(QString& str_, QString& strError_) const;
 
-   void Start(unsigned int CountIndividuals_, size_t CountIterations_, bool UseMutation_ = false, unsigned int Percent_ = 0);
+   void Start(unsigned int CountIndividuals_, size_t CountIterations_, bool UseMutation_ = false, unsigned int Percent_ = 0, unsigned int CountSkipMutation_ = 0);
 
-   void StartForThread(unsigned int CountIndividuals_, size_t CountIterations_, bool UseMutation, unsigned int Percent_);
+   void StartForThread(unsigned int CountIndividuals_, size_t CountIterations_, bool UseMutation_, unsigned int Percent_, unsigned int CountSkipMutation_);
 
    void Clear();
 

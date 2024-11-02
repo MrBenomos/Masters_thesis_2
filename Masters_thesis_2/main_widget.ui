@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>385</width>
-    <height>240</height>
+    <height>268</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -117,19 +117,6 @@
           <bool>false</bool>
          </property>
          <layout class="QGridLayout" name="gridLayout">
-          <item row="0" column="2">
-           <widget class="QLabel" name="label">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
-            </property>
-            <property name="text">
-             <string>%</string>
-            </property>
-           </widget>
-          </item>
           <item row="0" column="0">
            <widget class="QLabel" name="label_2">
             <property name="sizePolicy">
@@ -143,8 +130,41 @@
             </property>
            </widget>
           </item>
+          <item row="0" column="2">
+           <widget class="QLabel" name="label">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="text">
+             <string>%</string>
+            </property>
+           </widget>
+          </item>
           <item row="0" column="1">
            <widget class="QSpinBox" name="sbMutation">
+            <property name="minimum">
+             <number>1</number>
+            </property>
+            <property name="maximum">
+             <number>100</number>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="0">
+           <widget class="QCheckBox" name="cbSkipMutations">
+            <property name="text">
+             <string>Отключить для последних итераций</string>
+            </property>
+            <property name="checked">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item row="1" column="1" colspan="2">
+           <widget class="QSpinBox" name="sbSkipMutations">
             <property name="minimum">
              <number>1</number>
             </property>
@@ -315,6 +335,18 @@
   </widget>
  </widget>
  <layoutdefault spacing="6" margin="11"/>
+ <tabstops>
+  <tabstop>sbIndivids</tabstop>
+  <tabstop>sbIterations</tabstop>
+  <tabstop>gbMutation</tabstop>
+  <tabstop>sbMutation</tabstop>
+  <tabstop>cbSkipMutations</tabstop>
+  <tabstop>sbSkipMutations</tabstop>
+  <tabstop>pbShowData</tabstop>
+  <tabstop>pbStart</tabstop>
+  <tabstop>pbLoad</tabstop>
+  <tabstop>pbUpload</tabstop>
+ </tabstops>
  <resources>
   <include location="main_widget.qrc"/>
  </resources>
