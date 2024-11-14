@@ -36,8 +36,7 @@ void MainWidget::onLoad()
    if (!path.isEmpty())
    {
       QString strError;
-      if (!m_algorithm.FillDataInFile(path, strError))
-         QMessageBox::warning(this, "Ошибка загрузки данных", strError);
+      m_algorithm.FillDataInFile(path);
    }
 }
 
@@ -48,33 +47,32 @@ void MainWidget::onUpload()
    if (!path.isEmpty())
    {
       QString strError;
-      if (!m_algorithm.WriteGenerationsInFile(path, strError))
-         QMessageBox::warning(this, "Ошибка выгрузки данных", strError);
+      m_algorithm.WriteInFile(path);
    }
 }
 
 void MainWidget::onStart()
 {
-   ui->pbStart->setEnabled(false);
-   ui->progressBar->setVisible(true);
-   ui->progressBar->setValue(0);
+   //ui->pbStart->setEnabled(false);
+   //ui->progressBar->setVisible(true);
+   //ui->progressBar->setValue(0);
 
-   QThread* thread = new QThread();
-   m_algorithm.moveToThread(thread);
+   //QThread* thread = new QThread();
+   //m_algorithm.moveToThread(thread);
 
-   connect(thread, &QThread::started, [&]()
-      {
-         m_algorithm.StartForThread(ui->sbIndivids->value(),
-            ui->sbIterations->value(),
-            ui->gbMutation->isChecked(),
-            ui->sbMutation->value(),
-            ui->cbSkipMutations->isChecked() ? ui->sbSkipMutations->value() : 0);
-      }
-   );
-   connect(thread, &QThread::finished, thread, &QThread::deleteLater);
-   connect(&m_algorithm, &CGeneticAlgorithm::signalEnd, thread, &QThread::quit);
+   //connect(thread, &QThread::started, [&]()
+   //   {
+   //      m_algorithm.StartForThread(ui->sbIndivids->value(),
+   //         ui->sbIterations->value(),
+   //         ui->gbMutation->isChecked(),
+   //         ui->sbMutation->value(),
+   //         ui->cbSkipMutations->isChecked() ? ui->sbSkipMutations->value() : 0);
+   //   }
+   //);
+   //connect(thread, &QThread::finished, thread, &QThread::deleteLater);
+   //connect(&m_algorithm, &CGeneticAlgorithm::signalEnd, thread, &QThread::quit);
 
-   thread->start();
+   //thread->start();
 }
 
 void MainWidget::onShowData()
@@ -88,18 +86,11 @@ void MainWidget::onShowData()
       connect(m_dlgViewer, &CViewer::destroyed, [&]() {m_dlgViewer = nullptr; });
    }
 
-   QString strText, strError;
    bool successfully = false;
 
-   successfully = m_algorithm.HasGenerations() ? m_algorithm.GetVarAndGen(strText, strError) : m_algorithm.GetVarAndCond(strText, strError);
+   QString strText = m_algorithm.HasGenerations() ? m_algorithm.StringCustom() : m_algorithm.StringCustom(true, true, true, false);
 
-   if (successfully)
-      m_dlgViewer->SetText(strText);
-   else
-   {
-      QMessageBox::warning(this, "Внимание", strError);
-      return;
-   }
+   m_dlgViewer->SetText(strText);
 
    m_dlgViewer->show();
 
@@ -136,9 +127,9 @@ void MainWidget::onUpdateProgress(int progress_)
    ui->progressBar->setValue(progress_);
 }
 
-void MainWidget::onShowError(const QString& messege_)
+void MainWidget::onShowError(const CException& messege_)
 {
-   QMessageBox::critical(this, "Ошибка", messege_);
+   QMessageBox::critical(this, messege_.title(), messege_.what());
 }
 
 void MainWidget::onEndingCalc()
@@ -146,16 +137,5 @@ void MainWidget::onEndingCalc()
    ui->pbStart->setEnabled(true);
 
    if (m_dlgViewer && ui->progressBar->value() == 100)
-   {
-      QString strText, strError;
-      if (m_algorithm.GetVarAndGen(strText, strError))
-         m_dlgViewer->SetText(strText);
-   }
-
-   // Скрытие прогресс бара через 5 секунд.
-   //QTimer* timer = new QTimer;
-   //timer->setSingleShot(true);
-   //connect(timer, &QTimer::timeout, [&]() {ui->progressBar->setVisible(false); });
-   //connect(timer, &QTimer::timeout, timer, &QObject::deleteLater);
-   //timer->start(5000);
+      m_dlgViewer->SetText(m_algorithm.StringCustom());
 }

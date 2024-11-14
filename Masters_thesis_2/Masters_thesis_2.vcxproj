@@ -92,6 +92,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="predicate.cpp" />
     <ClCompile Include="viewer.cpp" />
     <QtRcc Include="main_widget.qrc" />
     <QtUic Include="main_widget.ui" />
@@ -104,6 +105,10 @@
   <ItemGroup>
     <QtMoc Include="viewer.h" />
     <QtMoc Include="genetic_algorithm.h" />
+    <ClInclude Include="counter.h" />
+    <ClInclude Include="exception.h" />
+    <ClInclude Include="global.h" />
+    <ClInclude Include="predicate.h" />
     <ClInclude Include="random.h" />
   </ItemGroup>
   <ItemGroup>

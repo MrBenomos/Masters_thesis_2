@@ -27,7 +27,7 @@ private slots:
    void onSpinBoxValueChanged(int value_);
 
    void onUpdateProgress(int progress_);
-   void onShowError(const QString& messege_);
+   void onShowError(const CException& messege_);
    void onEndingCalc();
 
 private:
