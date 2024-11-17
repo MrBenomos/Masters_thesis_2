@@ -19,7 +19,7 @@
      <item>
       <widget class="QCheckBox" name="cbVariables">
        <property name="enabled">
-        <bool>false</bool>
+        <bool>true</bool>
        </property>
        <property name="text">
         <string>Переменные</string>
@@ -32,7 +32,7 @@
      <item>
       <widget class="QCheckBox" name="cbPredicates">
        <property name="enabled">
-        <bool>false</bool>
+        <bool>true</bool>
        </property>
        <property name="text">
         <string>Предикаты</string>
@@ -45,7 +45,7 @@
      <item>
       <widget class="QCheckBox" name="cbIntegrityLimitation">
        <property name="enabled">
-        <bool>false</bool>
+        <bool>true</bool>
        </property>
        <property name="text">
         <string>Изначальное ограничение</string>
@@ -58,7 +58,7 @@
      <item>
       <widget class="QCheckBox" name="cbGeneration">
        <property name="enabled">
-        <bool>false</bool>
+        <bool>true</bool>
        </property>
        <property name="text">
         <string>Последнее поколение</string>
@@ -71,7 +71,7 @@
      <item>
       <widget class="QSpinBox" name="sbCountGeneration">
        <property name="enabled">
-        <bool>false</bool>
+        <bool>true</bool>
        </property>
        <property name="minimumSize">
         <size>

@@ -24,7 +24,7 @@ private slots:
    void onStart();
    void onShowData();
    void onCheckStateChanged(int value_);
-   void onSpinBoxValueChanged(int value_);
+   void onIterationsChanged(int value_);
 
    void onUpdateProgress(int progress_);
    void onShowError(const CException& messege_);

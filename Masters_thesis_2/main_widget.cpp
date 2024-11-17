@@ -17,8 +17,9 @@ MainWidget::MainWidget(QWidget *parent) :
     connect(ui->pbUpload, &QPushButton::clicked, this, &MainWidget::onUpload);
     connect(ui->pbStart, &QPushButton::clicked, this, &MainWidget::onStart);
     connect(ui->pbShowData, &QPushButton::clicked, this, &MainWidget::onShowData);
-    connect(ui->cbSkipMutations, &QCheckBox::stateChanged, this, &MainWidget::onCheckStateChanged);
-    connect(ui->sbIterations, &QSpinBox::valueChanged, this, &MainWidget::onSpinBoxValueChanged);
+    connect(ui->cbSkipMutationsPredicates, &QCheckBox::stateChanged, this, &MainWidget::onCheckStateChanged);
+    connect(ui->cbSkipMutationsArgumetns, &QCheckBox::stateChanged, this, &MainWidget::onCheckStateChanged);
+    connect(ui->sbIterations, &QSpinBox::valueChanged, this, &MainWidget::onIterationsChanged);
 
     connect(&m_algorithm, &CGeneticAlgorithm::signalProgressUpdate, this, &MainWidget::onUpdateProgress);
     connect(&m_algorithm, &CGeneticAlgorithm::signalError, this, &MainWidget::onShowError);
@@ -53,44 +54,44 @@ void MainWidget::onUpload()
 
 void MainWidget::onStart()
 {
-   //ui->pbStart->setEnabled(false);
-   //ui->progressBar->setVisible(true);
-   //ui->progressBar->setValue(0);
+   ui->pbStart->setEnabled(false);
+   ui->progressBar->setVisible(true);
+   ui->progressBar->setValue(0);
 
-   //QThread* thread = new QThread();
-   //m_algorithm.moveToThread(thread);
+   QThread* thread = new QThread();
+   m_algorithm.moveToThread(thread);
 
-   //connect(thread, &QThread::started, [&]()
-   //   {
-   //      m_algorithm.StartForThread(ui->sbIndivids->value(),
-   //         ui->sbIterations->value(),
-   //         ui->gbMutation->isChecked(),
-   //         ui->sbMutation->value(),
-   //         ui->cbSkipMutations->isChecked() ? ui->sbSkipMutations->value() : 0);
-   //   }
-   //);
-   //connect(thread, &QThread::finished, thread, &QThread::deleteLater);
-   //connect(&m_algorithm, &CGeneticAlgorithm::signalEnd, thread, &QThread::quit);
+   connect(thread, &QThread::started, [this]()
+      {
+         bool bMutationArg = ui->gbMutationArguments->isChecked();
+         bool bSkipMutationArg = ui->cbSkipMutationsArgumetns->isChecked();
+         bool bMutationPred = ui->gbMutationPredicates->isChecked();
+         bool bSkipMutationPred = ui->cbSkipMutationsPredicates->isChecked();
+         m_algorithm.Start(ui->sbIndivids->value(),
+            ui->sbIterations->value(),
+            bMutationArg ? ui->sbMutationsArguments->value() : 0,
+            bSkipMutationArg ? ui->sbSkipMutationsArguments->value() : 0,
+            bMutationPred ? ui->sbMutationsPredicates->value() : 0,
+            bSkipMutationPred ? ui->sbSkipMutationsPredicates->value() : 0,
+            ui->sbMutationsIndivids->value());
+      }
+   );
+   connect(thread, &QThread::finished, thread, &QThread::deleteLater);
+   connect(&m_algorithm, &CGeneticAlgorithm::signalEnd, thread, &QThread::quit);
 
-   //thread->start();
+   thread->start();
 }
 
 void MainWidget::onShowData()
 {
    if (!m_dlgViewer)
    {
-      m_dlgViewer = new CViewer(this);
+      m_dlgViewer = new CViewer(this, &m_algorithm);
       m_dlgViewer->setAttribute(Qt::WA_DeleteOnClose);
       m_dlgViewer->setWindowFlag(Qt::Window);
 
       connect(m_dlgViewer, &CViewer::destroyed, [&]() {m_dlgViewer = nullptr; });
    }
-
-   bool successfully = false;
-
-   QString strText = m_algorithm.HasGenerations() ? m_algorithm.StringCustom() : m_algorithm.StringCustom(true, true, true, false);
-
-   m_dlgViewer->SetText(strText);
 
    m_dlgViewer->show();
 
@@ -104,22 +105,16 @@ void MainWidget::onCheckStateChanged(int value_)
    if (!pSender)
       return;
 
-   if (pSender == ui->cbSkipMutations)
-   {
-      ui->sbSkipMutations->setEnabled(value_);
-   }
+   if (pSender == ui->cbSkipMutationsPredicates)
+      ui->sbSkipMutationsPredicates->setEnabled(value_);
+   else if (pSender == ui->cbSkipMutationsArgumetns)
+      ui->sbSkipMutationsArguments->setEnabled(value_);
 }
 
-void MainWidget::onSpinBoxValueChanged(int value_)
+void MainWidget::onIterationsChanged(int value_)
 {
-   QSpinBox* pSender = qobject_cast<QSpinBox*>(sender());
-   if (!pSender)
-      return;
-
-   if (pSender == ui->sbIterations)
-   {
-      ui->sbSkipMutations->setMaximum(value_);
-   }
+   ui->sbSkipMutationsPredicates->setMaximum(value_);
+   ui->sbSkipMutationsArguments->setMaximum(value_);
 }
 
 void MainWidget::onUpdateProgress(int progress_)
@@ -136,6 +131,6 @@ void MainWidget::onEndingCalc()
 {
    ui->pbStart->setEnabled(true);
 
-   if (m_dlgViewer && ui->progressBar->value() == 100)
-      m_dlgViewer->SetText(m_algorithm.StringCustom());
+   if (m_dlgViewer)
+      m_dlgViewer->UpdateText();
 }

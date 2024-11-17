@@ -7,9 +7,29 @@
 #define SYMBOL_COMPLETION_CONDEITION ';'
 #define SPLITTER "===================="
 
+#define EXEPT(_exeption_)\
+{\
+Q_EMIT signalError(_exeption_);\
+return;\
+}
+
 #define ERROR(_message_, _title_, _location_)\
 {\
 Q_EMIT signalError(CException(_message_, _title_, _location_));\
+return;\
+}
+
+#define EXEPTINALG(_exeption_)\
+{\
+Q_EMIT signalError(_exeption_);\
+Q_EMIT signalEnd();\
+return;\
+}
+
+#define ERRORINALG(_message_, _title_, _location_)\
+{\
+Q_EMIT signalError(CException(_message_, _title_, _location_));\
+Q_EMIT signalEnd();\
 return;\
 }
 
@@ -239,81 +259,19 @@ void CGeneticAlgorithm::WriteInFile(const QString& fileName_, bool bVariables_, 
    }
 }
 
-//void CGeneticAlgorithm::Start(unsigned int CountIndividuals_, size_t CountIterations_, bool UseMutation_, unsigned int Percent_, unsigned int CountSkipMutation_)
-//{
-//   if (UseMutation_ && Percent_ == 0)
-//      UseMutation_ = false;
-//
-//   const double percentagePerIteration = 100. / CountIterations_; // количество процентов за одну итерацию
-//   int percentageCompleted = 0;
-//
-//   // Создание первого поколения
-//   CreateFirstGenerationRandom(CountIndividuals_);
-//
-//   for (size_t iGeneration = 0; iGeneration < CountIterations_; ++iGeneration)
-//   {
-//      std::vector<TIntegrityLimitation> children;
-//      for (size_t iNewIndiv = 0; iNewIndiv < CountIndividuals_ * 2; ++iNewIndiv)
-//      {
-//         m_rand.SetBoundaries(0, CountIndividuals_ - 1);
-//
-//         // Селекция (выбор родителей) (турнирный отбор)
-//         size_t idxParent1, idxParent2;
-//
-//         qint64 first = m_rand.Generate();
-//         qint64 second = m_rand.Generate();
-//         while (first == second)
-//            second = m_rand.Generate();
-//
-//         idxParent1 = FitnessFunction(m_vGenerations[first]) > FitnessFunction(m_vGenerations[second]) ? first : second;
-//
-//         first = m_rand.Generate();
-//         second = m_rand.Generate();
-//         while (first == second)
-//            second = m_rand.Generate();
-//
-//         idxParent2 = FitnessFunction(m_vGenerations[first]) > FitnessFunction(m_vGenerations[second]) ? first : second;
-//
-//         // Скрещивание
-//         children.push_back(CrossingByGenes(m_vGenerations[idxParent1], m_vGenerations[idxParent2]));
-//      }
-//
-//      // Мутация (отключена для последних итераций)
-//      if (UseMutation_ && iGeneration < CountIterations_ - CountSkipMutation_)
-//         for (auto& individ : children)
-//            Mutation(individ, 0.01 * Percent_);
-//
-//      // Селекция (полная замена, родителей "убиваем")
-//      Selection(children, CountIndividuals_);
-//
-//      // Отправляем сигнал о проценте выполнения.
-//      // +1 не делаю умышленно, чтобы последняя итерация не была = 100.
-//      if (percentagePerIteration * iGeneration > percentageCompleted)
-//      {
-//         percentageCompleted = percentagePerIteration * iGeneration;
-//         Q_EMIT signalProgressUpdate(percentageCompleted);
-//      }
-//   }
-//
-//   // Сортируем в порядке убывания
-//   SortDescendingOrder();
-//
-//   Q_EMIT signalProgressUpdate(100);
-//}
-
-void CGeneticAlgorithm::NewStart(int countIndividuals_, int countIterations_, int percentMutationArguments_, int countSkipMutationArg_, int percentMutationPredicates_, int countSkipMutationPred_)
+void CGeneticAlgorithm::Start(int countIndividuals_, int countIterations_, double percentMutationArguments_, int countSkipMutationArg_, double percentMutationPredicates_, int countSkipMutationPred_, double percentIndividualsUndergoingMutation_)
 {
    if (countIndividuals_ < 2)
-      ERROR("Количество особей должно быть не меньше 2, для создания потомства.", "Ошибка запуска", "")
+      ERRORINALG("Количество особей должно быть не меньше 2, для создания потомства.", "Ошибка запуска", "")
 
    if (countIterations_ < 0)
-      ERROR("Не может быть отрицательного числа итераций!", "Ошибка запуска", "")
+      ERRORINALG("Не может быть отрицательного числа итераций!", "Ошибка запуска", "")
 
    if (countSkipMutationArg_ < 0)
-      ERROR("Не может быть отрицательного пропуска мутаций аргументов!", "Ошибка запуска", "")
+      ERRORINALG("Не может быть отрицательного пропуска мутаций аргументов!", "Ошибка запуска", "")
 
    if (countSkipMutationArg_ < 0)
-      ERROR("Не может быть отрицательного пропуска мутаций предикатов!", "Ошибка запуска", "")
+      ERRORINALG("Не может быть отрицательного пропуска мутаций предикатов!", "Ошибка запуска", "")
 
    if (percentMutationArguments_ < 0)
       percentMutationArguments_ = 0;
@@ -321,47 +279,69 @@ void CGeneticAlgorithm::NewStart(int countIndividuals_, int countIterations_, in
    if (percentMutationPredicates_ < 0)
       percentMutationPredicates_ = 0;
 
+   if (percentIndividualsUndergoingMutation_ < 0)
+      percentIndividualsUndergoingMutation_ = 0;
+
    // Сам запуск
    const double percentagePerIteration = 100. / countIterations_; // количество процентов за одну итерацию
    int percentageCompleted = 0;
 
-   // Создание первого поколения
-   CreateFirstGenerationRandom(countIndividuals_);
-
-   for (size_t iGeneration = 0; iGeneration < countIterations_; ++iGeneration)
+   try
    {
-      std::vector<TIntegrityLimitation> children;
-      for (size_t iNewIndiv = 0; iNewIndiv < countIndividuals_ * 2; ++iNewIndiv)
-      {
-         // Селекция (выбор родителей) (турнирный отбор)
-         size_t idxParent1, idxParent2;
-         std::tie(idxParent1, idxParent2) = GetPairParents(countIndividuals_);
 
-         // Скрещивание
-         children.push_back(CrossingOnlyPredicates(m_vGenerations[idxParent1], m_vGenerations[idxParent2]));
+      // Создание первого поколения
+      CreateFirstGenerationRandom(countIndividuals_);
+
+      for (size_t iGeneration = 0; iGeneration < countIterations_; ++iGeneration)
+      {
+         std::vector<TIntegrityLimitation> children;
+         for (size_t iNewIndiv = 0; iNewIndiv < countIndividuals_ * 2; ++iNewIndiv)
+         {
+            // Селекция (выбор родителей) (турнирный отбор)
+            size_t idxParent1, idxParent2;
+            std::tie(idxParent1, idxParent2) = GetPairParents(countIndividuals_);
+
+            // Скрещивание
+            children.push_back(CrossingOnlyPredicates(m_vGenerations[idxParent1], m_vGenerations[idxParent2]));
+         }
+
+         // Мутации
+         size_t countMutation = children.size() * percentIndividualsUndergoingMutation_ * 0.01;
+
+         // Мутация аргументов
+         if (percentMutationArguments_ > 0 && iGeneration < countIterations_ - countSkipMutationArg_)
+            for (size_t iMutation = 0; iMutation < countMutation; ++iMutation)
+            {
+               MutationArguments(children.at(m_rand.Generate(0, children.size() - 1)), percentMutationArguments_ * 0.01);
+            }
+
+         // Мутация предикатов
+         if (percentMutationPredicates_ > 0 && iGeneration < countIterations_ - countSkipMutationPred_)
+            for (size_t iMutation = 0; iMutation < countMutation; ++iMutation)
+            {
+               MutationPredicates(children.at(m_rand.Generate(0, children.size() - 1)), percentMutationPredicates_ * 0.01);
+            }
+
+         // Селекция (полная замена, родителей "убиваем")
+         Selection(children, countIndividuals_);
+
+         // Отправляем сигнал о проценте выполнения.
+         // +1 не делаю умышленно, чтобы последняя итерация не была = 100.
+         if (percentagePerIteration * iGeneration > percentageCompleted)
+         {
+            percentageCompleted = percentagePerIteration * iGeneration;
+            Q_EMIT signalProgressUpdate(percentageCompleted);
+         }
       }
 
-      // Мутация (отключена для последних итераций)
-      if (UseMutation_ && iGeneration < CountIterations_ - CountSkipMutation_)
-         for (auto& individ : children)
-            Mutation(individ, 0.01 * Percent_);
-
-      // Селекция (полная замена, родителей "убиваем")
-      Selection(children, countIndividuals_);
-
-      // Отправляем сигнал о проценте выполнения.
-      // +1 не делаю умышленно, чтобы последняя итерация не была = 100.
-      if (percentagePerIteration * iGeneration > percentageCompleted)
-      {
-         percentageCompleted = percentagePerIteration * iGeneration;
-         Q_EMIT signalProgressUpdate(percentageCompleted);
-      }
+      // Сортируем в порядке убывания
+      SortDescendingOrder();
    }
-
-   // Сортируем в порядке убывания
-   SortDescendingOrder();
+   catch (const CException& error)
+      EXEPTINALG(error)
 
    Q_EMIT signalProgressUpdate(100);
+   Q_EMIT signalEnd();
 
 }
 
@@ -429,7 +409,7 @@ void CGeneticAlgorithm::CreateFirstGenerationRandom(size_t count_)
       throw CException("Количество предикатов должно быть не меньше 1.", "Ошибка генерации первого поколения", "CGeneticAlgorithm::CreateFirstGenerationRandom");
 
    const size_t sizeOrigin = m_original.size();
-   const size_t countPredicates = m_predicates.CountPredicates() - 1;
+   const size_t idxLastPredicates = m_predicates.CountPredicates() - 1;
 
    m_vGenerations.clear();
 
@@ -446,7 +426,7 @@ void CGeneticAlgorithm::CreateFirstGenerationRandom(size_t count_)
 
          for (size_t iPred = 0; iPred < sizeCond; ++iPred)
          {
-            size_t idxPred = m_rand.Generate(0, countPredicates);
+            size_t idxPred = m_rand.Generate(0, idxLastPredicates);
             size_t idxArg = m_rand.Generate(0, m_predicates.CountArguments(idxPred));
             SIndexPredicate idxs(idxPred, idxArg);
 

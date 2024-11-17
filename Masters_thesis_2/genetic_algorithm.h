@@ -96,10 +96,14 @@ public:
    void WriteInFile(const QString& fileName_, bool bVariables_ = true, bool bPredicates_ = true, bool bIntegrityLimitation_ = true, bool bGeneration_ = true, size_t countIndividuals_ = SIZE_MAX); //+++++ (сделать метод константным)
 
    // Запустить алгоритм с заданием параметров.
-   // ОПИСАТЬ ПАРАМЕТРЫ //+++++
-   //void Start(unsigned int CountIndividuals_, size_t CountIterations_, bool UseMutation_ = false, unsigned int Percent_ = 0, unsigned int CountSkipMutation_ = 0); //+++++
-
-   void NewStart(int countIndividuals_, int countIterations_, int percentMutationArguments_, int countSkipMutationArg_, int percentMutationPredicates_, int countSkipMutationPred_);
+   // countIndividuals_ - количество особей
+   // countIterations_ - количество итераций
+   // percentMutationArguments_ - процент мутаций аргументов в предикате в одном условии
+   // countSkipMutationArg_ - количество последних итераций которых не затронет мутация аргументов
+   // percentMutationPredicates_ - процент мутаций предикатов (полностью, с аргументами) в одном условии
+   // countSkipMutationPred_ - количество последних итераций которых не затронет мутация предикатов
+   // percentIndividualsUndergoingMutation_ - процент особей которые будут подвергнуты мутациям (в каждом поколении)
+   void Start(int countIndividuals_, int countIterations_, double percentMutationArguments_, int countSkipMutationArg_, double percentMutationPredicates_, int countSkipMutationPred_, double percentIndividualsUndergoingMutation_ = 100);
 
    void Clear();
 
