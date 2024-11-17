@@ -181,66 +181,74 @@ QString CGeneticAlgorithm::StringGeneration(size_t count_) const
 QString CGeneticAlgorithm::StringCustom(bool bVariables_, bool bPredicates_, bool bIntegrityLimitation_, bool bGeneration_, size_t countIndividuals_) const
 {
    QString str;
-   QTextStream out(&str);
 
-   qsizetype oldSize = str.size();
-
-   if (bVariables_)
-      out << StringVariables();
-
-   if (bPredicates_)
+   try
    {
-      if (oldSize < str.size())
+      QTextStream out(&str);
+
+      qsizetype oldSize = str.size();
+
+      if (bVariables_)
+         out << StringVariables();
+
+      if (bPredicates_)
       {
-         out << Qt::endl << Qt::endl;
-         oldSize = str.size();
+         if (oldSize < str.size())
+         {
+            out << Qt::endl << Qt::endl;
+            oldSize = str.size();
+         }
+
+         out << StringPredicates();
       }
 
-      out << StringPredicates();
+
+      if (bIntegrityLimitation_)
+      {
+         if (oldSize < str.size())
+         {
+            out << Qt::endl << Qt::endl;
+            oldSize = str.size();
+         }
+
+         if (str.size() != 0)
+         {
+            out << SPLITTER;
+            out << Qt::endl << Qt::endl;
+            oldSize = str.size();
+         }
+
+         out << StringIntegrityLimitation();
+      }
+
+      if (bGeneration_)
+      {
+         if (oldSize < str.size())
+         {
+            out << Qt::endl << Qt::endl;
+            out << SPLITTER;
+            out << Qt::endl << Qt::endl;
+            oldSize = str.size();
+         }
+         else if (str.size() != 0 && !bIntegrityLimitation_)
+         {
+            out << SPLITTER;
+            out << Qt::endl << Qt::endl;
+            oldSize = str.size();
+         }
+
+         out << StringGeneration(countIndividuals_);
+      }
    }
-
-
-   if (bIntegrityLimitation_)
+   catch (const CException& error)
    {
-      if (oldSize < str.size())
-      {
-         out << Qt::endl << Qt::endl;
-         oldSize = str.size();
-      }
-
-      if (str.size() != 0)
-      {
-         out << SPLITTER;
-         out << Qt::endl << Qt::endl;
-         oldSize = str.size();
-      }
-
-      out << StringIntegrityLimitation();
-   }
-
-   if (bGeneration_)
-   {
-      if (oldSize < str.size())
-      {
-         out << Qt::endl << Qt::endl;
-         out << SPLITTER;
-         out << Qt::endl << Qt::endl;
-         oldSize = str.size();
-      }
-      else if (str.size() != 0 && !bIntegrityLimitation_)
-      {
-         out << SPLITTER;
-         out << Qt::endl << Qt::endl;
-         oldSize = str.size();
-      }
-
-      out << StringGeneration(countIndividuals_);
+      Q_EMIT signalError(error);
    }
 
    return str;
 }
 
-void CGeneticAlgorithm::WriteInFile(const QString& fileName_, bool bVariables_, bool bPredicates_, bool bIntegrityLimitation_, bool bGeneration_, size_t countIndividuals_)
+void CGeneticAlgorithm::WriteInFile(const QString& fileName_, bool bVariables_, bool bPredicates_, bool bIntegrityLimitation_, bool bGeneration_, size_t countIndividuals_) const
 {
    QFile file(fileName_);
 
@@ -543,6 +551,9 @@ void CGeneticAlgorithm::MutationArguments(TIntegrityLimitation& individual_, dou
    {
       auto& fullCond = individual_.at(m_rand.Generate(0, iLastConditions)); // выбор условия
       auto& partCond = m_rand.Generate(0, 1) ? fullCond.right : fullCond.left; // выбор части условия (правая или левая)
+      if (partCond.size() < 1)
+         continue;
+
       auto& idxsPred = partCond.at(m_rand.Generate(0, partCond.size() - 1)); // выбор конкретного предиката в условии целостности
       size_t posArg = m_rand.Generate(0, m_predicates.CountArguments(idxsPred.idxPredicat) - 1); // выбор позиции аргумента у выбранного предиката
       size_t newValueVar = m_rand.Generate(0, countVariables - 1); // новое значение выбранного аргумента
@@ -574,6 +585,9 @@ void CGeneticAlgorithm::MutationPredicates(TIntegrityLimitation& individual_, do
    {
       auto& fullCond = individual_.at(m_rand.Generate(0, iLastConditions));
       auto& partCond = m_rand.Generate(0, 1) ? fullCond.right : fullCond.left;
+      if (partCond.size() < 1)
+         continue;
+
       auto& idxsPred = partCond.at(m_rand.Generate(0, partCond.size() - 1));
 
       size_t newIdxPred = m_rand.Generate(0, iLastPredicates);

@@ -93,7 +93,7 @@ public:
    // bGenerations_ - Записать поколения.
    // countIndividuals_ - Количество первых особей.
    // !> emit signal error
-   void WriteInFile(const QString& fileName_, bool bVariables_ = true, bool bPredicates_ = true, bool bIntegrityLimitation_ = true, bool bGeneration_ = true, size_t countIndividuals_ = SIZE_MAX); //+++++ (сделать метод константным)
+   void WriteInFile(const QString& fileName_, bool bVariables_ = true, bool bPredicates_ = true, bool bIntegrityLimitation_ = true, bool bGeneration_ = true, size_t countIndividuals_ = SIZE_MAX) const;
 
    // Запустить алгоритм с заданием параметров.
    // countIndividuals_ - количество особей
@@ -112,9 +112,9 @@ public:
    static bool isIllegalSymbol(QChar symbol_);
 
 signals:
-   void signalProgressUpdate(int value_);
-   void signalEnd();
-   void signalError(const CException& error_);
+   void signalProgressUpdate(int value_) const;
+   void signalEnd() const;
+   void signalError(const CException& error_) const;
 
 
 private:
