@@ -5,21 +5,28 @@
 #include <map>
 
 #include "random.h"
+#include "predicate.h"
+#include "exception.h"
+
+// Индексы предикатов.
+struct SIndexPredicate
+{
+   size_t idxPredicat;
+   size_t idxTable;
+
+   SIndexPredicate(size_t idxPredicat_, size_t idxTable_) : idxPredicat(idxPredicat_), idxTable(idxTable_) {}
+};
+
+// Условие целостности (одно).
+struct SCondition
+{
+   std::vector<SIndexPredicate> left; // левая часть (X -> ...)
+   std::vector<SIndexPredicate> right; // правая часть (... -> X)
+
+   inline size_t GeneralCount() const { return left.size() + right.size(); }
+};
 
 class QTextStream;
-
-// Пропозициональная переменная (PropositionalVariable) 
-struct SPropVar
-{
-   QString name;
-   bool value;
-
-   SPropVar(const QString& Name_, bool Value_) :
-      name(Name_), value(Value_) {};
-
-   bool operator<(const SPropVar& Var_) const
-   { return name < Var_.name; }
-};
 
 enum EAddingError
 {
@@ -30,95 +37,139 @@ enum EAddingError
    eInvalidIndex        // Неверный индекс
 };
 
+class CError
+{
+   QString m_title;
+   QString m_errorMessage;
+};
+
 class CGeneticAlgorithm : public QObject
 {
    Q_OBJECT
 
-   using TCond = std::vector<char>; // 0 - не использ., 1 - лево, 2 - право
-   using TСondIntegrity = std::vector<TCond>;
+   using TIntegrityLimitation = std::vector<SCondition>; // Ограничение целостности (вектор условий).
+
+   CPredicates m_predicates; // Предикаты (там же хранятся и переменные)
+   TIntegrityLimitation m_original; // Изначальное ограничение целостности (для финтес ф-ции)
+   std::vector<TIntegrityLimitation> m_vGenerations;
+
+   mutable CRandom m_rand;
 
 public:
    CGeneticAlgorithm();
    ~CGeneticAlgorithm() = default;
 
-   // Добавляет пропозициональную переменную, возвращает true если успешно добавлено, false иначе.
-   bool AddVariable(const SPropVar& Variable_);
-   // Добавляет условие, возвращает индекс этого условия.
-   size_t AddCondition();
-   // Добавляет переменную в левую часть условия.
-   EAddingError AddVariableLeftSideCondition(size_t IndexCondition_, const QString& Name_);
-   // Добавляет переменную в правую часть условия.
-   EAddingError AddVariableRightSideCondition(size_t IndexCondition_, const QString& Name_);
-   // Считывает и заносит переменные из строки, возвращает признак успешности прочтения строки.
-   bool SetVariablesFromString(const QString& Str_, QString& StrError_);
-   // Считывает и заносит условие из строки, возвращает признак успешности прочтения строки.
-   bool SetConditionFromString(const QString& Str_, QString& StrError_);
-   // Получает данные из файла, возвращает признак успешности заполнения данных.
-   bool FillDataInFile(const QString& FileName_, QString& StrError_);
-   // Записывает ограничение целостности (исходное) в файл.
-   bool WriteСonditionIntegrityInFile(const QString& FileName_, QString& StrError_) const;
-   // Записывает все текущие поколения в файл.
-   bool WriteGenerationsInFile(const QString& FileName_, QString& StrError_) const;
+   // Получает данные из файла
+   // !> emit signal error
+   void FillDataInFile(const QString& fileName_);
 
-   // Формирует строку с переменными, return true - успешно.
-   bool GetVariables(QString& strVariables_, QString& strError_) const;
-   // Формирует строку с условием целостности, return true - успешно.
-   bool GetСondIntegrity(QString& strСondIntegrity_, QString& strError_) const;
-   // Формирует строку со всеми поколениями, return true - успешно.
-   bool GetAllGenerations(QString& strGenerations_, QString& strError_) const;
-   // Формирует строку с переменными и условием целостности, return true - успешно.
-   bool GetVarAndCond(QString& str_, QString& strError_) const;
-   // Формирует строку с переменными и всеми поколениями, return true - успешно.
-   bool GetVarAndGen(QString& str_, QString& strError_) const;
+   // Возвращает строку с переменными.
+   QString StringVariables() const;
 
-   void Start(unsigned int CountIndividuals_, size_t CountIterations_, bool UseMutation_ = false, unsigned int Percent_ = 0, unsigned int CountSkipMutation_ = 0);
+   // Возвращает строку с предикатами.
+   QString StringPredicates() const;
 
-   void StartForThread(unsigned int CountIndividuals_, size_t CountIterations_, bool UseMutation_, unsigned int Percent_, unsigned int CountSkipMutation_);
+   // Возвращает строку с ограничением целостности.
+   QString StringIntegrityLimitation() const;
+
+   // Возвращает строку с поклоениями. Выводит первые count_ особей.
+   // Чтобы вывести все поколения оставьте значение по умолчанию.
+   QString StringGeneration(size_t count_ = SIZE_MAX) const;
+
+   // Возвращает настраиваемую строку.
+   // fileName_ - имя файла.
+   // bVariables_ - Записать переменные.
+   // bPredicates_ - Записать предикаты и их таблицы истинности.
+   // bIntegrityLimitation_ - Записать исходное ограничение целостности.
+   // bGenerations_ - Записать поколения.
+   // countIndividuals_ - Количество первых особей.
+   QString StringCustom(bool bVariables_ = true, bool bPredicates_ = true, bool bIntegrityLimitation_ = true, bool bGeneration_ = true, size_t countIndividuals_ = SIZE_MAX) const;
+
+   // Запись в файл.
+   // fileName_ - имя файла.
+   // bVariables_ - Записать переменные.
+   // bPredicates_ - Записать предикаты и их таблицы истинности.
+   // bIntegrityLimitation_ - Записать исходное ограничение целостности.
+   // bGenerations_ - Записать поколения.
+   // countIndividuals_ - Количество первых особей.
+   // !> emit signal error
+   void WriteInFile(const QString& fileName_, bool bVariables_ = true, bool bPredicates_ = true, bool bIntegrityLimitation_ = true, bool bGeneration_ = true, size_t countIndividuals_ = SIZE_MAX); //+++++ (сделать метод константным)
+
+   // Запустить алгоритм с заданием параметров.
+   // countIndividuals_ - количество особей
+   // countIterations_ - количество итераций
+   // percentMutationArguments_ - процент мутаций аргументов в предикате в одном условии
+   // countSkipMutationArg_ - количество последних итераций которых не затронет мутация аргументов
+   // percentMutationPredicates_ - процент мутаций предикатов (полностью, с аргументами) в одном условии
+   // countSkipMutationPred_ - количество последних итераций которых не затронет мутация предикатов
+   // percentIndividualsUndergoingMutation_ - процент особей которые будут подвергнуты мутациям (в каждом поколении)
+   void Start(int countIndividuals_, int countIterations_, double percentMutationArguments_, int countSkipMutationArg_, double percentMutationPredicates_, int countSkipMutationPred_, double percentIndividualsUndergoingMutation_ = 100);
 
    void Clear();
 
    bool HasGenerations() const;
 
-   // Возвращает true, если символ является зарезервированным.
-   static bool IllegalSymbol(QChar Symbol_);
+   static bool isIllegalSymbol(QChar symbol_);
 
 signals:
    void signalProgressUpdate(int value_);
    void signalEnd();
-   void signalError(const QString& strError_);
+   void signalError(const CException& error_);
 
-
-protected:
-   void InitVectVar();
-   static QString ErrorMessage(const QString& Message_ = "", const QString& Line_ = "", size_t Position_ = SIZE_MAX);
-
-   // Записать в поток все пропозициональные переменные.
-   bool WriteVarsInStream(QTextStream& Stream_, QString& StrError_) const;
-   // Записать в поток ограничение целостности.
-   bool WriteСondsInStream(QTextStream& Stream_, QString& StrError_, const TСondIntegrity& Conds_) const;
-
-
-   void CreateFirstGenerationRandom(size_t Count_);
-   // Скрещивание по генам (каждый ген берется у случайного родителя).
-   TСondIntegrity CrossingByGenes(const TСondIntegrity& Parent1_, const TСondIntegrity& Parent2_) const;
-   // Скрещивание по ограничениям целостности (каждое ограничение берется у случайного родителя).
-   TСondIntegrity CrossingByConds(const TСondIntegrity& Parent1_, const TСondIntegrity& Parent2_) const;
-   // Селекция. Выбираются лучшие (по фитнесс функции) CountSurvivors_ особей из Individuals_, т.е. полная замена, родителей "убиваем".
-   void Selection(const std::vector<TСondIntegrity>& Individuals_, size_t CountSurvivors_);
-   void Mutation(TСondIntegrity& Individuals_, double Ratio_) const;
-
-   bool IsCorrectCondition(const TCond& Cond_) const;
-   bool IsTrueCondition(const TCond& Cond_) const;
-   double FitnessFunction(const TСondIntegrity& Conds_) const;
-   void SortDescendingOrder();
 
 private:
-   std::map<SPropVar, size_t> m_mapVariables;
-   std::vector<SPropVar> m_vVariables;
 
-   TСondIntegrity m_vSpecified; // условие целостности (для финтес ф-ции)
+   // Считывает и заносит условия из строки.
+   void SetConditionsFromString(const QString& str_);
 
-   std::vector<TСondIntegrity> m_vGenerations;
+   // Записывает условие в строку.
+   QString StringCondition(const SCondition& condition_) const;
 
-   mutable CRandom m_rand;
+   // Записывает ограничение целостности в строку.
+   QString StringIntegrityLimitation(const TIntegrityLimitation& integrityLimitation_, bool bInsertNewLine_ = false) const;
+
+   // Сгенерировать первое поколение рандомно.
+   void CreateFirstGenerationRandom(size_t count_);
+
+   // Скрещивание только по предикатам.
+   TIntegrityLimitation CrossingOnlyPredicates(const TIntegrityLimitation& parent1_, const TIntegrityLimitation& parent2_) const;
+
+   // Селекция. Выбираются лучшие (по фитнесс функции) CountSurvivors_ особей из Individuals_, т.е. полная замена, родителей "убиваем".
+   void Selection(const std::vector<TIntegrityLimitation>& individual_, size_t countSurvivors_);
+
+   // Мутация аргументов в предикате.
+   void MutationArguments(TIntegrityLimitation& individual_, double ratio_) const;
+
+   // Мутация предикатов.
+   void MutationPredicates(TIntegrityLimitation& individual_, double ratio_) const;
+
+   // Возвращает количество всех предикатов во всем ограничении.
+   size_t CountAllPreficates(const TIntegrityLimitation& individual_) const;
+
+   bool IsCorrectCondition(const SCondition& cond_) const;
+
+   bool IsTrueCondition(const SCondition& cond_) const;
+
+   // Фитнес функци.
+   // Считает общее кол-во предикатов в ограничении - N.
+   // Значение для предиката равно P / N, где P = [0, 1] - корректность предиката.
+   // Если предикат изменен вообще (другой предикат) то P = 0,
+   // если предикат тот же, но изменились его аргументы, то корректность P = (1 - arg / cha),
+   // где arg - количество аргументов у предиката, а cha - количество отличных от изначального условия аргументов.
+   // В итоге, если условие истинности считается истинным, то общий результат будет помножен на 2.
+   double FitnessFunction(const TIntegrityLimitation& conds_) const;
+
+   size_t SelectRandParent(size_t countIndividuals_) const;
+
+   std::pair<size_t, size_t> GetPairParents(size_t countIndividuals_) const;
+
+   void SortDescendingOrder();
+
+   void SortRestriction(TIntegrityLimitation& individual_) const;
+
+   static QString highlightBlock(const QString& str_, qsizetype& index_);
+   static QString highlightName(const QString& str_, qsizetype& index_);
+   static bool hasSymbol(const QString str_, qsizetype& index_, QChar symbol_);
+
+   SIndexPredicate getPredicate(const QString& str_, qsizetype& index_) const;
 };
