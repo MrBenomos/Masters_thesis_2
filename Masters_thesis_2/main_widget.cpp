@@ -17,8 +17,8 @@ MainWidget::MainWidget(QWidget *parent) :
     connect(ui->pbUpload, &QPushButton::clicked, this, &MainWidget::onUpload);
     connect(ui->pbStart, &QPushButton::clicked, this, &MainWidget::onStart);
     connect(ui->pbShowData, &QPushButton::clicked, this, &MainWidget::onShowData);
-    connect(ui->cbSkipMutationsPredicates, &QCheckBox::stateChanged, this, &MainWidget::onCheckStateChanged);
-    connect(ui->cbSkipMutationsArgumetns, &QCheckBox::stateChanged, this, &MainWidget::onCheckStateChanged);
+    connect(ui->cbSkipMutationsPredicates, &QCheckBox::checkStateChanged, this, &MainWidget::onCheckStateChanged);
+    connect(ui->cbSkipMutationsArgumetns, &QCheckBox::checkStateChanged, this, &MainWidget::onCheckStateChanged);
     connect(ui->sbIterations, &QSpinBox::valueChanged, this, &MainWidget::onIterationsChanged);
 
     connect(&m_algorithm, &CGeneticAlgorithm::signalProgressUpdate, this, &MainWidget::onUpdateProgress);
