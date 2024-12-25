@@ -1,9 +1,11 @@
+#include <cmath>
+
+#include <QTextStream>
+
 #include "predicate.h"
 #include "exception.h"
 #include "counter.h"
 #include "global.h"
-#include <QTextStream>
-#include <cmath>
 
 // Неверный индекс предиката. #1 - кол-во предикатов, #2 - индекс к которому пытались обратиться.
 static const QString INVALID_PREDICATE("Попытка обращения к предикату с несуществующим индексом. Всего предикатов: %1, попытка обращения к: %2");
@@ -12,7 +14,7 @@ static const QString INVALID_TABLE("Попытка обращения к таб�
 // Ошибка: невозможно изменить переменные.
 static const CException EXC_CANT_ADD_VARIABLE("Невозможно изменить набор переменных, после добавления хотя бы одного предиката.", "Ошибка изменения переменых", "CPredicates::SetVariables");
 
-constexpr char RESERVED_CHARACTERS[] = "(),=";
+constexpr const char RESERVED_CHARACTERS[] = "(),=";
 
 inline size_t pow(size_t base_, size_t exp_)
 {
@@ -56,9 +58,9 @@ const std::vector<size_t> SPredicate::GetArgs(size_t countVariables_, size_t ind
 {
    std::vector<size_t> vArgs;
 
-   size_t countArg = intLog(table.size(), countVariables_);
+   size_t countArg = intLog(countVariables_, table.size());
 
-   if (countArg * countVariables_ != table.size())
+   if (pow(countVariables_, static_cast<size_t>(countArg)) != table.size())
       return vArgs;
 
    vArgs.resize(countArg);
@@ -173,7 +175,7 @@ void CPredicates::AddPredicates(const QString& str_)
       skipSpace(str_, i, ')');
 
       // таблица истинности
-      size_t tableSize = numberArg * m_vVariables.size();
+      size_t tableSize = pow(m_vVariables.size(), static_cast<size_t>(numberArg));
       size_t delta = 0; // используется, если в таблице несколько условий с одинаковыми переменными
       predicate.table.resize(tableSize);
       std::vector<bool> vTableFill(tableSize, false);
@@ -230,7 +232,7 @@ void CPredicates::AddPredicates(const QString& str_)
          // Всевозможные проверки таблицы
          size_t foundIndex = predicate.GetIndex(static_cast<size_t>(m_vVariables.size()), vIdxVar);
          if (foundIndex >= tableSize)
-            throw CException("!> Ошибка индексирования! Обратитесь к разработчику.", "Ошибка добавления предиката", "CPredicates::AddPredicates");
+            throw CException("Ошибка индексирования! Обратитесь к разработчику.", "Ошибка добавления предиката", "CPredicates::AddPredicates");
 
          if (vTableFill.at(foundIndex))
          {

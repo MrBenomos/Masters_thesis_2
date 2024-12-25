@@ -790,9 +790,6 @@ CGeneticAlgorithm::SCounts CGeneticAlgorithm::quantitativeAssessment(const TPart
 
 double CGeneticAlgorithm::getMultiplierArguments(size_t differences_, size_t total_) const
 {
-   if (m_delta < 1)
-      throw CException("Ошибка задания дельты.", "Некорректно задан параметр.", "CGeneticAlgorithm::getMultiplierArguments"); // +++++ Перенести в место задания этой переменной и поменять текст.
-
    return 1 - (differences_ * m_delta_1) / (total_ * m_delta);
 }
 
