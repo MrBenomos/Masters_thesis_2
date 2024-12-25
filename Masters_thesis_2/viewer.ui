@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>600</width>
+    <width>820</width>
     <height>400</height>
    </rect>
   </property>
@@ -69,13 +69,23 @@
       </widget>
      </item>
      <item>
+      <widget class="QCheckBox" name="cbFitness">
+       <property name="text">
+        <string>Значение фитнес-функции</string>
+       </property>
+       <property name="checked">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+     <item>
       <widget class="QSpinBox" name="sbCountGeneration">
        <property name="enabled">
         <bool>true</bool>
        </property>
        <property name="minimumSize">
         <size>
-         <width>50</width>
+         <width>80</width>
          <height>0</height>
         </size>
        </property>
@@ -90,7 +100,7 @@
      <item>
       <spacer name="horizontalSpacer">
        <property name="orientation">
-        <enum>Qt::Horizontal</enum>
+        <enum>Qt::Orientation::Horizontal</enum>
        </property>
        <property name="sizeHint" stdset="0">
         <size>

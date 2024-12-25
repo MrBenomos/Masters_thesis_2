@@ -38,6 +38,9 @@ void MainWidget::onLoad()
    {
       QString strError;
       m_algorithm.FillDataInFile(path);
+
+      if (m_dlgViewer)
+         m_dlgViewer->UpdateText();
    }
 }
 
@@ -57,6 +60,9 @@ void MainWidget::onStart()
    ui->pbStart->setEnabled(false);
    ui->progressBar->setVisible(true);
    ui->progressBar->setValue(0);
+
+   m_algorithm.SetCostAddingPredicate(ui->sbCostAdding->value());
+   m_algorithm.SetLimitOfArgumentsChange(ui->sbCostArguments->value());
 
    QThread* thread = new QThread();
    m_algorithm.moveToThread(thread);

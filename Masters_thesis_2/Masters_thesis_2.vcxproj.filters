@@ -71,14 +71,6 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <Text Include="OutputFile.txt">
-      <Filter>Text Files</Filter>
-    </Text>
-    <Text Include="InputFile.txt">
-      <Filter>Text Files</Filter>
-    </Text>
-  </ItemGroup>
-  <ItemGroup>
     <QtMoc Include="genetic_algorithm.h">
       <Filter>Header Files</Filter>
     </QtMoc>
@@ -90,5 +82,13 @@
     <QtUic Include="viewer.ui">
       <Filter>Form Files</Filter>
     </QtUic>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="Predicates.txt">
+      <Filter>Text Files</Filter>
+    </Text>
+    <Text Include="PredicatesOutput.txt">
+      <Filter>Text Files</Filter>
+    </Text>
   </ItemGroup>
 </Project>

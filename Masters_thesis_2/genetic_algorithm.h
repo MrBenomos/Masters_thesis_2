@@ -1,66 +1,87 @@
 #pragma once
+#include <vector>
+#include <tuple>
+
 #include <QObject>
 #include <QString>
-#include <vector>
-#include <map>
 
 #include "random.h"
 #include "predicate.h"
 #include "exception.h"
 
-// Индексы предикатов.
-struct SIndexPredicate
-{
-   size_t idxPredicat;
-   size_t idxTable;
-
-   SIndexPredicate(size_t idxPredicat_, size_t idxTable_) : idxPredicat(idxPredicat_), idxTable(idxTable_) {}
-};
-
-// Условие целостности (одно).
-struct SCondition
-{
-   std::vector<SIndexPredicate> left; // левая часть (X -> ...)
-   std::vector<SIndexPredicate> right; // правая часть (... -> X)
-
-   inline size_t GeneralCount() const { return left.size() + right.size(); }
-};
-
 class QTextStream;
-
-enum EAddingError
-{
-   eSuccessfully,       // Успешное добавление переменной
-   eUnknownVariable,    // Неизвестная переменная
-   VariablePresent,     // Переменная уже присутствует
-   OppositeCondition,   // Переменная используется в другой части условия
-   eInvalidIndex        // Неверный индекс
-};
-
-class CError
-{
-   QString m_title;
-   QString m_errorMessage;
-};
 
 class CGeneticAlgorithm : public QObject
 {
    Q_OBJECT
 
+   // ================================ С т р у к т у р ы ================================
+
+   // Экземпляр предиката.
+   struct SPredicateInstance
+   {
+      size_t idxPredicate; // индекс предиката
+      size_t idxTable;     // индекс из таблицы истинности для набора аргументов
+
+      SPredicateInstance(size_t idxPredicat_, size_t idxTable_) : idxPredicate(idxPredicat_), idxTable(idxTable_) {}
+   };
+
+   using TPartCondition = std::vector<SPredicateInstance>;
+
+   // Условие целостности (одно).
+   struct SCondition
+   {
+      TPartCondition left; // левая часть (X -> ...)
+      TPartCondition right; // правая часть (... -> X)
+
+      inline size_t GeneralCount() const { return left.size() + right.size(); }
+   };
+
+   // Для фитнес функции - количества.
+   struct SCounts
+   {
+      // Аргументы
+      size_t diffArg = 0;     // Несовпадающие
+      size_t totalArg = 0;    // Всего
+      // Предикаты
+      size_t matchPred = 0;   // Совпадающие
+      size_t addedPred = 0;   // Добавленые
+      size_t deletedPred = 0; // Удаленные
+
+      SCounts& operator+=(const SCounts& added_);
+   };
+
    using TIntegrityLimitation = std::vector<SCondition>; // Ограничение целостности (вектор условий).
 
-   CPredicates m_predicates; // Предикаты (там же хранятся и переменные)
-   TIntegrityLimitation m_original; // Изначальное ограничение целостности (для финтес ф-ции)
+   // =============================== П е р е м е н н ы е ===============================
+
+   // Предикаты (там же хранятся и переменные).
+   CPredicates m_predicates;
+
+   // Изначальное ограничение целостности (для финтес ф-ции). 
+   TIntegrityLimitation m_original;
+
+   // Одно поколение (состоящее из множества особей).
    std::vector<TIntegrityLimitation> m_vGenerations;
 
    mutable CRandom m_rand;
 
+   // Влияние отличных переменных. (1; +inf)
+   // Чем больше текущая переменная, тем ближе к 0 будет значение предикат,
+   // если все аргументы будут отличны от оригинала.
+   double m_delta = 2;
+   double m_delta_1 = 1;
+
+   // Цена добавления предиката [0; 1].
+   double m_costAddingPredicate = 0.5;
+
 public:
+   // ========================== О т к р ы т ы е   м е т о д ы ==========================
    CGeneticAlgorithm();
    ~CGeneticAlgorithm() = default;
 
-   // Получает данные из файла
-   // !> emit signal error
+   // Получает данные из файла.
+   // !> emit signal error.
    void FillDataInFile(const QString& fileName_);
 
    // Возвращает строку с переменными.
@@ -74,7 +95,7 @@ public:
 
    // Возвращает строку с поклоениями. Выводит первые count_ особей.
    // Чтобы вывести все поколения оставьте значение по умолчанию.
-   QString StringGeneration(size_t count_ = SIZE_MAX) const;
+   QString StringGeneration(bool bFitness_ = true, size_t count_ = SIZE_MAX) const;
 
    // Возвращает настраиваемую строку.
    // fileName_ - имя файла.
@@ -82,8 +103,9 @@ public:
    // bPredicates_ - Записать предикаты и их таблицы истинности.
    // bIntegrityLimitation_ - Записать исходное ограничение целостности.
    // bGenerations_ - Записать поколения.
+   // bFitness - Выводить значение фитнес функции.
    // countIndividuals_ - Количество первых особей.
-   QString StringCustom(bool bVariables_ = true, bool bPredicates_ = true, bool bIntegrityLimitation_ = true, bool bGeneration_ = true, size_t countIndividuals_ = SIZE_MAX) const;
+   QString StringCustom(bool bVariables_ = true, bool bPredicates_ = true, bool bIntegrityLimitation_ = true, bool bGeneration_ = true, bool bFitness_ = true, size_t countIndividuals_ = SIZE_MAX) const;
 
    // Запись в файл.
    // fileName_ - имя файла.
@@ -92,8 +114,8 @@ public:
    // bIntegrityLimitation_ - Записать исходное ограничение целостности.
    // bGenerations_ - Записать поколения.
    // countIndividuals_ - Количество первых особей.
-   // !> emit signal error
-   void WriteInFile(const QString& fileName_, bool bVariables_ = true, bool bPredicates_ = true, bool bIntegrityLimitation_ = true, bool bGeneration_ = true, size_t countIndividuals_ = SIZE_MAX) const;
+   // !> emit signal error.
+   void WriteInFile(const QString& fileName_, bool bVariables_ = true, bool bPredicates_ = true, bool bIntegrityLimitation_ = true, bool bGeneration_ = true, bool bFitness_ = true, size_t countIndividuals_ = SIZE_MAX) const;
 
    // Запустить алгоритм с заданием параметров.
    // countIndividuals_ - количество особей
@@ -109,15 +131,27 @@ public:
 
    bool HasGenerations() const;
 
+   // Устанавливает цену нижней границы для измененных аргументов.
+   // Допустимые значения в интевале (0; 1).
+   // !> emit signal error.
+   void SetLimitOfArgumentsChange(double from_);
+
+   // Устанавливает цену добавления нового предиката.
+   // Допустимые значения в отрезке [0; 1].
+   // !> emit signal error.
+   void SetCostAddingPredicate(double cost_);
+
    static bool isIllegalSymbol(QChar symbol_);
 
 signals:
+   // ================================== С и г н а л ы ==================================
    void signalProgressUpdate(int value_) const;
    void signalEnd() const;
    void signalError(const CException& error_) const;
 
 
 private:
+   //  ========================= З а к р ы т ы е   м е т о д ы ==========================
 
    // Считывает и заносит условия из строки.
    void SetConditionsFromString(const QString& str_);
@@ -144,14 +178,26 @@ private:
    void MutationPredicates(TIntegrityLimitation& individual_, double ratio_) const;
 
    // Возвращает количество всех предикатов во всем ограничении.
-   size_t CountAllPreficates(const TIntegrityLimitation& individual_) const;
+   size_t CountAllPredicates(const TIntegrityLimitation& individual_) const;
 
+   // Возвращает корректность условия (обе части должны быть не пусты).
    bool IsCorrectCondition(const SCondition& cond_) const;
 
+   // Возвращает истинность условия.
    bool IsTrueCondition(const SCondition& cond_) const;
 
-   // Фитнес функци.
-   // Считает общее кол-во предикатов (N) в условии целостности.
+   // Возвращает индекс родителя из поколения. Турнирная функция выбора.
+   size_t SelectRandParent(size_t countIndividuals_) const;
+
+   // Возвращает индексы двух разных родителей из поколения.
+   // Использует турнирный отбор.
+   std::pair<size_t, size_t> GetPairParents(size_t countIndividuals_) const;
+
+   // Сортирует поколение в порядке убывания фитнес функции.
+   void SortGenerationDescendingOrder();
+
+   // Фитнес функция.
+   // Считается общее кол-во предикатов (N) в одном условии целостности.
    // Значение для предиката равно P / N, где P = [0, 1] - корректность предиката.
    // Если предикат изменен вообще (другой предикат) то P = 0,
    // если предикат тот же, но изменились его аргументы, то корректность P = (1 - arg / cha),
@@ -159,17 +205,30 @@ private:
    // В итоге, если условие целостности считается истинным, то общий результат будет помножен на 2.
    double FitnessFunction(const TIntegrityLimitation& conds_) const;
 
-   size_t SelectRandParent(size_t countIndividuals_) const;
+   // ----------------------- Вспомогательные функции для фитнеса -----------------------
 
-   std::pair<size_t, size_t> GetPairParents(size_t countIndividuals_) const;
+   // Возвращает индексы предикатов в условии, которые имеют такой же индекс как и у sample_ в порядке возрастания отличий в аргументах.
+   // Возвращает multimap<число_отличий, индекс_предиката>.
+   std::multimap<int, size_t> findMinDifference(const SPredicateInstance& sample_, const TPartCondition& verifiable_) const;
 
-   void SortDescendingOrder();
+   // Количественная оценка.
+   // Возвращает:
+   // 1. Количество отличных аргументов у (всех) одинаковых предикат.
+   // 2. Количество всего аргументов у этих предикат (всех).
+   // 3. Количество совпадающих предикат.
+   // 4. Количество добавленных предикат.
+   // 5. Количество удаленных предикат.
+   SCounts quantitativeAssessment(const TPartCondition& sample_, const TPartCondition& verifiable_) const;
 
-   void SortRestriction(TIntegrityLimitation& individual_) const;
+   // Возвращает множитель аргументов.
+   double getMultiplierArguments(size_t differences_, size_t total_) const;
+
+   // --------------------------- Функции работы со строками ----------------------------
+
+   // Получает экземпляр предиката из строки (с аргументами).
+   SPredicateInstance getPredicate(const QString& str_, qsizetype& index_) const;
 
    static QString highlightBlock(const QString& str_, qsizetype& index_);
    static QString highlightName(const QString& str_, qsizetype& index_);
    static bool hasSymbol(const QString str_, qsizetype& index_, QChar symbol_);
-
-   SIndexPredicate getPredicate(const QString& str_, qsizetype& index_) const;
 };

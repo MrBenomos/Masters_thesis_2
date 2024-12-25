@@ -1,8 +1,11 @@
+#include <algorithm>
+
+#include <QFile>
+#include <QTextStream>
+
 #include "genetic_algorithm.h"
 #include "exception.h"
 #include "global.h"
-#include <QFile>
-#include <QTextStream>
 
 #define SYMBOL_COMPLETION_CONDEITION ';'
 #define SPLITTER "===================="
@@ -19,14 +22,14 @@ Q_EMIT signalError(CException(_message_, _title_, _location_));\
 return;\
 }
 
-#define EXEPTINALG(_exeption_)\
+#define EXEPTSIGNAL(_exeption_)\
 {\
 Q_EMIT signalError(_exeption_);\
 Q_EMIT signalEnd();\
 return;\
 }
 
-#define ERRORINALG(_message_, _title_, _location_)\
+#define ERRORSIGNAL(_message_, _title_, _location_)\
 {\
 Q_EMIT signalError(CException(_message_, _title_, _location_));\
 Q_EMIT signalEnd();\
@@ -146,7 +149,7 @@ void CGeneticAlgorithm::FillDataInFile(const QString& fileName_)
       return;
    }
 
-   SortRestriction(m_original);
+   //SortRestriction(m_original);
 }
 
 QString CGeneticAlgorithm::StringVariables() const
@@ -164,21 +167,32 @@ QString CGeneticAlgorithm::StringIntegrityLimitation() const
    return StringIntegrityLimitation(m_original);
 }
 
-QString CGeneticAlgorithm::StringGeneration(size_t count_) const
+QString CGeneticAlgorithm::StringGeneration(bool bFitness_, size_t count_) const
 {
    count_ = qMin(count_, m_vGenerations.size());
 
    QString str;
 
-   for (size_t iGen = 0; iGen < count_; ++iGen)
-      str += StringIntegrityLimitation(m_vGenerations.at(iGen), true);
+   if (bFitness_)
+   {
+      for (size_t iGen = 0; iGen < count_; ++iGen)
+      {
+         str += QString("#%1 = %2%3").arg(iGen + 1).arg(FitnessFunction(m_vGenerations.at(iGen))).arg(NEW_LINE);
+         str += StringIntegrityLimitation(m_vGenerations.at(iGen), true);
+      }
+   }
+   else
+   {
+      for (size_t iGen = 0; iGen < count_; ++iGen)
+         str += StringIntegrityLimitation(m_vGenerations.at(iGen), true);
+   }
 
    str.chop(COUNT_SYMB_NEW_LINE);
 
    return str;
 }
 
-QString CGeneticAlgorithm::StringCustom(bool bVariables_, bool bPredicates_, bool bIntegrityLimitation_, bool bGeneration_, size_t countIndividuals_) const
+QString CGeneticAlgorithm::StringCustom(bool bVariables_, bool bPredicates_, bool bIntegrityLimitation_, bool bGeneration_, bool bFitness_, size_t countIndividuals_) const
 {
    QString str;
 
@@ -237,7 +251,7 @@ QString CGeneticAlgorithm::StringCustom(bool bVariables_, bool bPredicates_, boo
             oldSize = str.size();
          }
 
-         out << StringGeneration(countIndividuals_);
+         out << StringGeneration(bFitness_, countIndividuals_);
       }
    }
    catch (const CException& error)
@@ -248,7 +262,7 @@ QString CGeneticAlgorithm::StringCustom(bool bVariables_, bool bPredicates_, boo
    return str;
 }
 
-void CGeneticAlgorithm::WriteInFile(const QString& fileName_, bool bVariables_, bool bPredicates_, bool bIntegrityLimitation_, bool bGeneration_, size_t countIndividuals_) const
+void CGeneticAlgorithm::WriteInFile(const QString& fileName_, bool bVariables_, bool bPredicates_, bool bIntegrityLimitation_, bool bGeneration_, bool bFitness_, size_t countIndividuals_) const
 {
    QFile file(fileName_);
 
@@ -257,7 +271,7 @@ void CGeneticAlgorithm::WriteInFile(const QString& fileName_, bool bVariables_, 
 
    try
    {
-      file.write(StringCustom(bVariables_, bPredicates_, bIntegrityLimitation_, bGeneration_, countIndividuals_).toLocal8Bit());
+      file.write(StringCustom(bVariables_, bPredicates_, bIntegrityLimitation_, bGeneration_, bFitness_, countIndividuals_).toLocal8Bit());
    }
    catch (CException& error)
    {
@@ -270,16 +284,16 @@ void CGeneticAlgorithm::WriteInFile(const QString& fileName_, bool bVariables_, 
 void CGeneticAlgorithm::Start(int countIndividuals_, int countIterations_, double percentMutationArguments_, int countSkipMutationArg_, double percentMutationPredicates_, int countSkipMutationPred_, double percentIndividualsUndergoingMutation_)
 {
    if (countIndividuals_ < 2)
-      ERRORINALG("Количество особей должно быть не меньше 2, для создания потомства.", "Ошибка запуска", "")
+      ERRORSIGNAL("Количество особей должно быть не меньше 2, для создания потомства.", "Ошибка запуска", "")
 
    if (countIterations_ < 0)
-      ERRORINALG("Не может быть отрицательного числа итераций!", "Ошибка запуска", "")
+      ERRORSIGNAL("Не может быть отрицательного числа итераций!", "Ошибка запуска", "")
 
    if (countSkipMutationArg_ < 0)
-      ERRORINALG("Не может быть отрицательного пропуска мутаций аргументов!", "Ошибка запуска", "")
+      ERRORSIGNAL("Не может быть отрицательного пропуска мутаций аргументов!", "Ошибка запуска", "")
 
    if (countSkipMutationArg_ < 0)
-      ERRORINALG("Не может быть отрицательного пропуска мутаций предикатов!", "Ошибка запуска", "")
+      ERRORSIGNAL("Не может быть отрицательного пропуска мутаций предикатов!", "Ошибка запуска", "")
 
    if (percentMutationArguments_ < 0)
       percentMutationArguments_ = 0;
@@ -296,7 +310,6 @@ void CGeneticAlgorithm::Start(int countIndividuals_, int countIterations_, doubl
 
    try
    {
-
       // Создание первого поколения
       CreateFirstGenerationRandom(countIndividuals_);
 
@@ -334,7 +347,6 @@ void CGeneticAlgorithm::Start(int countIndividuals_, int countIterations_, doubl
          Selection(children, countIndividuals_);
 
          // Отправляем сигнал о проценте выполнения.
-         // +1 не делаю умышленно, чтобы последняя итерация не была = 100.
          if (percentagePerIteration * iGeneration > percentageCompleted)
          {
             percentageCompleted = percentagePerIteration * iGeneration;
@@ -343,10 +355,10 @@ void CGeneticAlgorithm::Start(int countIndividuals_, int countIterations_, doubl
       }
 
       // Сортируем в порядке убывания
-      SortDescendingOrder();
+      SortGenerationDescendingOrder();
    }
    catch (const CException& error)
-      EXEPTINALG(error)
+      EXEPTSIGNAL(error)
 
    Q_EMIT signalProgressUpdate(100);
    Q_EMIT signalEnd();
@@ -365,6 +377,25 @@ bool CGeneticAlgorithm::HasGenerations() const
    return !m_vGenerations.empty();
 }
 
+void CGeneticAlgorithm::SetLimitOfArgumentsChange(double from_)
+{
+   if (from_ <= 0 || from_ >= 1)
+      ERROR("Невозможно установить цену нижней границы для измененных аргументов выходящую за интервал (0; 1).",
+         "Некорректное значение", "CGeneticAlgorithm::SetRangeOfArgumentsChange")
+
+   m_delta = 1 / from_;
+   m_delta_1 = m_delta - 1;
+}
+
+void CGeneticAlgorithm::SetCostAddingPredicate(double cost_)
+{
+   if (cost_ < 0 || cost_ > 1)
+      ERROR("Невозможно установить стоимость добавления предиката выходящую за диапазон [0; 1].",
+         "Некорректное значение", "CGeneticAlgorithm::SetCostAddingPredicate")
+
+   m_costAddingPredicate = cost_;
+}
+
 bool CGeneticAlgorithm::isIllegalSymbol(QChar symbol_)
 {
    const QChar illegalSymbols[] = { ',', '-','>', '$', '(', ')', SYMBOL_COMPLETION_CONDEITION };
@@ -381,12 +412,12 @@ QString CGeneticAlgorithm::StringCondition(const SCondition& condition_) const
    QString str;
 
    for (const auto& leftPart : condition_.left)
-      str = m_predicates.StringPredicateWithArg(leftPart.idxPredicat, leftPart.idxTable) + ' ';
+      str += m_predicates.StringPredicateWithArg(leftPart.idxPredicate, leftPart.idxTable) + ' ';
 
    str.append("->");
 
    for (const auto& rightPart : condition_.right)
-      str += ' ' + m_predicates.StringPredicateWithArg(rightPart.idxPredicat, rightPart.idxTable);
+      str += ' ' + m_predicates.StringPredicateWithArg(rightPart.idxPredicate, rightPart.idxTable);
 
    return str.append(';');
 }
@@ -436,18 +467,18 @@ void CGeneticAlgorithm::CreateFirstGenerationRandom(size_t count_)
          {
             size_t idxPred = m_rand.Generate(0, idxLastPredicates);
             size_t idxArg = m_rand.Generate(0, m_predicates.CountArguments(idxPred));
-            SIndexPredicate idxs(idxPred, idxArg);
+            SPredicateInstance predInst(idxPred, idxArg);
 
             if (m_rand.Generate(0, 1))
-               cond.left.push_back(std::move(idxs));
+               cond.left.push_back(std::move(predInst));
             else
-               cond.right.push_back(std::move(idxs));
+               cond.right.push_back(std::move(predInst));
          }
 
          conds[iCond] = cond;
       }
 
-      SortRestriction(conds);
+      //SortRestriction(conds);
       m_vGenerations.push_back(conds);
    }
 }
@@ -469,7 +500,7 @@ CGeneticAlgorithm::TIntegrityLimitation CGeneticAlgorithm::CrossingOnlyPredicate
       // левая часть
       size_t minPred = qMin(cond1.left.size(), cond2.left.size());
       for (size_t iPred = 0; iPred < minPred; ++iPred)
-      {
+      { 
          if (m_rand.Generate(0, 1))
             newCond.left.push_back(cond2.left.at(iPred));
          else
@@ -505,7 +536,7 @@ CGeneticAlgorithm::TIntegrityLimitation CGeneticAlgorithm::CrossingOnlyPredicate
       child.push_back(newCond);
    }
 
-   SortRestriction(child);
+   //SortRestriction(child);
 
    return child;
 }
@@ -536,11 +567,11 @@ void CGeneticAlgorithm::MutationArguments(TIntegrityLimitation& individual_, dou
    size_t countAllArg = 0;
    for (const auto& cond : individual_)
    {
-      for (const auto& pred : cond.left)
-         countAllArg += m_predicates.CountArguments(pred.idxPredicat);
+      for (const auto& predInst : cond.left)
+         countAllArg += m_predicates.CountArguments(predInst.idxPredicate);
 
-      for (const auto& pred : cond.right)
-         countAllArg += m_predicates.CountArguments(pred.idxPredicat);
+      for (const auto& predInst : cond.right)
+         countAllArg += m_predicates.CountArguments(predInst.idxPredicate);
    }
 
    const size_t iLastConditions = individual_.size() - 1;
@@ -554,17 +585,17 @@ void CGeneticAlgorithm::MutationArguments(TIntegrityLimitation& individual_, dou
       if (partCond.size() < 1)
          continue;
 
-      auto& idxsPred = partCond.at(m_rand.Generate(0, partCond.size() - 1)); // выбор конкретного предиката в условии целостности
-      size_t posArg = m_rand.Generate(0, m_predicates.CountArguments(idxsPred.idxPredicat) - 1); // выбор позиции аргумента у выбранного предиката
+      auto& predInst = partCond.at(m_rand.Generate(0, partCond.size() - 1)); // выбор конкретного предиката в условии целостности
+      size_t posArg = m_rand.Generate(0, m_predicates.CountArguments(predInst.idxPredicate) - 1); // выбор позиции аргумента у выбранного предиката
       size_t newValueVar = m_rand.Generate(0, countVariables - 1); // новое значение выбранного аргумента
 
-      SPredicate realPredicate = m_predicates.GetPredicate(idxsPred.idxPredicat);
-      auto realArguments = realPredicate.GetArgs(countVariables, idxsPred.idxTable);
+      SPredicate realPredicate = m_predicates.GetPredicate(predInst.idxPredicate);
+      auto realArguments = realPredicate.GetArgs(countVariables, predInst.idxTable);
       if (realArguments.empty())
          throw CException("Ошибка при мутации аргументов в одном из условий целостности.", "Непредвиденная ошибка", "CGeneticAlgorithm::MutationArguments");
 
       realArguments[posArg] = newValueVar;
-      idxsPred.idxTable = realPredicate.GetIndex(countVariables, realArguments);
+      predInst.idxTable = realPredicate.GetIndex(countVariables, realArguments);
    }
 }
 
@@ -573,9 +604,7 @@ void CGeneticAlgorithm::MutationPredicates(TIntegrityLimitation& individual_, do
    if (ratio_ <= 0.)
       return;
 
-   size_t countPredicats = 0;
-   for (const auto& cond : individual_)
-      countPredicats += cond.left.size() + cond.right.size();
+   size_t countPredicats = CountAllPredicates(individual_);
 
    const size_t iLastConditions = individual_.size() - 1;
    const size_t iLastPredicates = m_predicates.CountPredicates() - 1;
@@ -588,17 +617,17 @@ void CGeneticAlgorithm::MutationPredicates(TIntegrityLimitation& individual_, do
       if (partCond.size() < 1)
          continue;
 
-      auto& idxsPred = partCond.at(m_rand.Generate(0, partCond.size() - 1));
+      auto& predInst = partCond.at(m_rand.Generate(0, partCond.size() - 1));
 
       size_t newIdxPred = m_rand.Generate(0, iLastPredicates);
       size_t newIdxTable = m_rand.Generate(0, m_predicates.CountArguments(newIdxPred) - 1);
 
-      idxsPred.idxPredicat = newIdxPred;
-      idxsPred.idxTable = newIdxTable;
+      predInst.idxPredicate = newIdxPred;
+      predInst.idxTable = newIdxTable;
    }
 }
 
-size_t CGeneticAlgorithm::CountAllPreficates(const TIntegrityLimitation& individual_) const
+size_t CGeneticAlgorithm::CountAllPredicates(const TIntegrityLimitation& individual_) const
 {
    size_t count = 0;
    for (const auto& cond : individual_)
@@ -617,15 +646,15 @@ bool CGeneticAlgorithm::IsTrueCondition(const SCondition& Cond_) const
    // Если в левой части 0, то импликация всегда истинна. (0->X = 1)
    // Если в правой части 1, то импликация тоже всегда истинна. (X->1 = 1)
 
-   for (const auto& pred : Cond_.left)
+   for (const auto& predInst : Cond_.left)
    {
-      if (!m_predicates.GetValuePredicate(pred.idxPredicat, pred.idxTable))
+      if (!m_predicates.GetValuePredicate(predInst.idxPredicate, predInst.idxTable))
          return true;
    }
 
-   for (const auto& pred : Cond_.right)
+   for (const auto& predInst : Cond_.right)
    {
-      if (m_predicates.GetValuePredicate(pred.idxPredicat, pred.idxTable))
+      if (m_predicates.GetValuePredicate(predInst.idxPredicate, predInst.idxTable))
          return true;
    }
 
@@ -634,63 +663,137 @@ bool CGeneticAlgorithm::IsTrueCondition(const SCondition& Cond_) const
 
 double CGeneticAlgorithm::FitnessFunction(const TIntegrityLimitation& conds_) const
 {
-   //const size_t countAllPredicates = CountAllPreficates(conds_);
+   if (m_original.size() != conds_.size())
+      throw CException("Попытка фитнеса двух разных ограничений целостности. Обратитесь к разработчику.", "Непредвиденная ошибка.", "CGeneticAlgorithm::FitnessFunction");
 
-   //for (const auto& cond : conds_)
-   //{
-   //   std::vector<std::pair<size_t, map<>>>
-   //   double p = 1;
-   //}
+   double fitnes = 0;
 
-   return 1;
+   for (size_t iCond = 0; iCond < m_original.size(); ++iCond)
+   {
+      if (!IsCorrectCondition(conds_.at(iCond)))
+      {
+         fitnes += -1. / m_original.size();
+         continue;
+      }
 
-   ////////////////
+      SCounts count;
 
-   //size_t countVar = m_vVariables.size();
+      count += quantitativeAssessment(m_original.at(iCond).left, conds_.at(iCond).left);
+      count += quantitativeAssessment(m_original.at(iCond).right, conds_.at(iCond).right);
 
-   //double fitness = 0;
-   //const double maxCondition = 1. / conds_.size();
+      const double dMultiplierArgs = getMultiplierArguments(count.diffArg, count.totalArg);
+      double fitnesCond = IsTrueCondition(conds_.at(iCond)) ? 0. : -1.;
+      fitnesCond += dMultiplierArgs * count.matchPred;
+      fitnesCond += m_costAddingPredicate * count.addedPred;
+      fitnesCond /= count.matchPred + count.addedPred + count.deletedPred;
 
-   //for (int iCond = 0; iCond < conds_.size(); ++iCond)
-   //{
-   //   const TCond& cond = conds_[iCond];
-   //   if (!IsCorrectCondition(cond))
-   //      continue;
+      fitnes += fitnesCond / m_original.size();
+   }
 
-   //   // Считаем сколько отличий
-   //   size_t n = 0;
-   //   for (int iVar = 0; iVar < cond.size(); ++iVar)
-   //   {
-   //      switch (cond[iVar])
-   //      {
-   //      case 0:
-   //         if (m_original[iCond][iVar] != 0)
-   //            ++n;
-   //         break;
-   //      case 1:
-   //         if (m_original[iCond][iVar] == 0)
-   //            ++n;
-   //         else if (m_original[iCond][iVar] == 2)
-   //            n += 2;
-   //         break;
-   //      case 2:
-   //         if (m_original[iCond][iVar] == 0)
-   //            ++n;
-   //         else if (m_original[iCond][iVar] == 1)
-   //            n += 2;
-   //         break;
-   //      default:
-   //         throw CException("Ошибка", "Ошибка", "CGeneticAlgorithm::FitnessFunction");
-   //      }
-   //   }
+   return fitnes;
+}
 
-   //   if (!IsTrueCondition(cond))
-   //      fitness += maxCondition / (((countVar + 1) * 2) + n);
-   //   else
-   //      fitness += maxCondition / (n + 1);
-   //}
+std::multimap<int, size_t> CGeneticAlgorithm::findMinDifference(const SPredicateInstance& sample_, const TPartCondition& verifiable_) const
+{
+   // Число отличий, индекс в векторе условия.
+   std::multimap<int, size_t> result;
 
-   //return fitness;
+   try
+   {
+      const size_t countVariables = m_predicates.CountVariables();
+      const SPredicate& samplePredicate = m_predicates.GetPredicate(sample_.idxPredicate);
+      const std::vector<size_t>& sampleArgs = samplePredicate.GetArgs(countVariables, sample_.idxTable);
+
+      if (sampleArgs.empty())
+         throw CException("", "Ошибка. Обратитесь к разработчику", "CGeneticAlgorithm::findMinDifference");
+
+      for (size_t iPredInst = 0; iPredInst < verifiable_.size(); ++iPredInst)
+      {
+         const SPredicateInstance& predInst = verifiable_.at(iPredInst);
+         if (predInst.idxPredicate != sample_.idxPredicate)
+            continue;
+
+         const SPredicate& verPredicate = m_predicates.GetPredicate(predInst.idxPredicate);
+         const std::vector<size_t>& verArgs = verPredicate.GetArgs(countVariables, predInst.idxTable);
+
+         if (verArgs.empty() || verArgs.size() != sampleArgs.size())
+            throw CException("", "Ошибка. Обратитесь к разработчику", "CGeneticAlgorithm::findMinDifference");
+
+         int counter = 0;
+         for (size_t i = 0; i < verArgs.size(); ++i)
+         {
+            if (sampleArgs[i] != verArgs[i])
+               ++counter;
+         }
+
+         result.emplace(counter, iPredInst);
+      }
+   }
+   catch (CException& error)
+   {
+      if (!strlen(error.message()))
+         error.addToBeginningMessage("Ошибка при нахождении предикатов с минимальным отличием.");
+      else
+         error.message("Ошибка при нахождении предикатов с минимальным отличием.");
+
+      throw error;
+   }
+
+   return result;
+}
+
+CGeneticAlgorithm::SCounts CGeneticAlgorithm::quantitativeAssessment(const TPartCondition& sample_, const TPartCondition& verifiable_) const
+{
+   SCounts count;
+
+   std::vector<bool> vUsedPredInst(verifiable_.size(), false);
+
+   for (size_t iPredInst = 0; iPredInst < sample_.size(); ++iPredInst)
+   {
+      auto mapIdentical = findMinDifference(sample_.at(iPredInst), verifiable_);
+
+      if (mapIdentical.empty())
+      {
+         ++count.deletedPred;
+      }
+      else
+      {
+         bool bFoundPair = false;
+         for (const auto& candidate : mapIdentical)
+         {
+            const size_t idxInCond = candidate.second;
+            if (!vUsedPredInst.at(idxInCond))
+            {
+               vUsedPredInst.at(idxInCond) = true;
+               count.diffArg += candidate.first;
+               count.totalArg += m_predicates.CountArguments(verifiable_.at(idxInCond).idxPredicate);
+               bFoundPair = true;
+               break;
+            }
+         }
+
+         if (bFoundPair)
+            count.matchPred += 2; // т.к. совпадают у обоих.
+         else
+            ++count.deletedPred;
+      }
+   }
+
+   for (bool used : vUsedPredInst)
+   {
+      if (!used)
+         ++count.addedPred;
+   }
+
+   return count;
+}
+
+double CGeneticAlgorithm::getMultiplierArguments(size_t differences_, size_t total_) const
+{
+   if (m_delta < 1)
+      throw CException("Ошибка задания дельты.", "Некорректно задан параметр.", "CGeneticAlgorithm::getMultiplierArguments"); // +++++ Перенести в место задания этой переменной и поменять текст.
+
+   return 1 - (differences_ * m_delta_1) / (total_ * m_delta);
 }
 
 size_t CGeneticAlgorithm::SelectRandParent(size_t countIndividuals_) const
@@ -710,9 +813,6 @@ size_t CGeneticAlgorithm::SelectRandParent(size_t countIndividuals_) const
 
 std::pair<size_t, size_t> CGeneticAlgorithm::GetPairParents(size_t countIndividuals_) const
 {
-   if (countIndividuals_ < 2)
-      throw CException("Слишком мало индивидуумов!", "Ошибка выбора родителей", "CGeneticAlgorithm::GetPairParents");
-
    size_t index1 = SelectRandParent(countIndividuals_);
    size_t index2 = SelectRandParent(countIndividuals_);
 
@@ -722,7 +822,7 @@ std::pair<size_t, size_t> CGeneticAlgorithm::GetPairParents(size_t countIndividu
    return std::make_pair(index1, index2);
 }
 
-void CGeneticAlgorithm::SortDescendingOrder()
+void CGeneticAlgorithm::SortGenerationDescendingOrder()
 {
    std::multimap<double, TIntegrityLimitation, std::greater<double>> mapIdx;
 
@@ -734,27 +834,6 @@ void CGeneticAlgorithm::SortDescendingOrder()
    for (const auto& individ : mapIdx)
       m_vGenerations.push_back(individ.second);
 
-}
-
-void CGeneticAlgorithm::SortRestriction(TIntegrityLimitation& individual_) const
-{
-   auto sort = [](std::vector<SIndexPredicate>& partCondition_)
-      {
-         std::sort(partCondition_.begin(), partCondition_.end(), [](const SIndexPredicate& a, const SIndexPredicate& b)
-            {
-               if (a.idxPredicat != b.idxPredicat)
-               {
-                  return a.idxPredicat < b.idxPredicat;
-               }
-               return a.idxTable < b.idxTable;
-            });
-      };
-
-   for (auto& cond : individual_)
-   {
-      sort(cond.left);
-      sort(cond.right);
-   }
 }
 
 QString CGeneticAlgorithm::highlightBlock(const QString& str_, qsizetype& index_)
@@ -795,7 +874,7 @@ bool CGeneticAlgorithm::hasSymbol(const QString str_, qsizetype& index_, QChar s
    return false;
 }
 
-SIndexPredicate CGeneticAlgorithm::getPredicate(const QString& str_, qsizetype& index_) const
+CGeneticAlgorithm::SPredicateInstance CGeneticAlgorithm::getPredicate(const QString& str_, qsizetype& index_) const
 {
    QString predicateName = highlightName(str_, index_);
    if (predicateName.isEmpty())
@@ -830,5 +909,17 @@ SIndexPredicate CGeneticAlgorithm::getPredicate(const QString& str_, qsizetype& 
    if (idxArguments == SIZE_MAX)
       throw CException(QString("Отсутствует значение для полученного набора аргументов у предиката \"%1\"").arg(predicateName));
 
-   return SIndexPredicate(idxPredicate, idxArguments);
+   return SPredicateInstance(idxPredicate, idxArguments);
+}
+
+CGeneticAlgorithm::SCounts& CGeneticAlgorithm::SCounts::operator+=(const SCounts& added_)
+{
+   diffArg += added_.diffArg;
+   totalArg += added_.totalArg;
+
+   matchPred += added_.matchPred;
+   addedPred += added_.addedPred;
+   deletedPred += added_.deletedPred;
+
+   return *this;
 }

@@ -117,8 +117,8 @@
     <ClInclude Include="random.h" />
   </ItemGroup>
   <ItemGroup>
-    <Text Include="InputFile.txt" />
-    <Text Include="OutputFile.txt" />
+    <Text Include="Predicates.txt" />
+    <Text Include="PredicatesOutput.txt" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Condition="Exists('$(QtMsBuild)\qt.targets')">

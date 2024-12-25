@@ -1,7 +1,10 @@
 #pragma once
 #include <exception>
 #include <string>
+
 #include <QString>
+
+#include "global.h"
 
 class STR
 {
@@ -17,6 +20,8 @@ public:
 
 class CException : public std::exception
 {
+   static constexpr const char* SEPARATOR = NEW_LINE;
+
    std::string m_message;
    std::string m_title;
    std::string m_location;
@@ -37,6 +42,10 @@ public:
    const char* title() const noexcept { return m_title.c_str(); }
    const char* location() const noexcept { return m_location.c_str(); }
 
+   void message(const STR& newMessage_) { m_message = newMessage_; }
    void title(const STR& newTitle_) { m_title = newTitle_; }
    void location(const STR& newLocation_) { m_location = newLocation_; }
+
+   void addToBeginningMessage(const STR& text_) { m_message.insert(0, text_.operator std::string().append(SEPARATOR)); }
+   void addToEndMessage(const STR& text_) { m_message.append(text_.operator std::string().insert(0, SEPARATOR)); }
 };
