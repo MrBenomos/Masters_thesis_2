@@ -52,6 +52,8 @@ class CGeneticAlgorithm : public QObject
    };
 
    using TIntegrityLimitation = std::vector<SCondition>; // Ограничение целостности (вектор условий).
+   using TIntLimAndFitness = std::pair<TIntegrityLimitation, double>; // Ограничение целостности и фитнес.
+   using TGeneration = std::vector<TIntLimAndFitness>; // Поколение - вектор ограничений с фитнесом.
 
    // =============================== П е р е м е н н ы е ===============================
 
@@ -61,8 +63,8 @@ class CGeneticAlgorithm : public QObject
    // Изначальное ограничение целостности (для финтес ф-ции). 
    TIntegrityLimitation m_original;
 
-   // Одно поколение (состоящее из множества особей).
-   std::vector<TIntegrityLimitation> m_vGenerations;
+   // Одно поколение (состоящее из множества особей/индивидуумов).
+   TGeneration m_generation;
 
    mutable CRandom m_rand;
 
@@ -168,8 +170,8 @@ private:
    // Скрещивание только по предикатам.
    TIntegrityLimitation CrossingOnlyPredicates(const TIntegrityLimitation& parent1_, const TIntegrityLimitation& parent2_) const;
 
-   // Селекция. Выбираются лучшие (по фитнесс функции) CountSurvivors_ особей из Individuals_, т.е. полная замена, родителей "убиваем".
-   void Selection(const std::vector<TIntegrityLimitation>& individual_, size_t countSurvivors_);
+   // Селекция. Выбираются лучшие (по фитнесс функции) CountSurvivors_ особей из individuals_, т.е. полная замена, родителей "убиваем".
+   void Selection(const TGeneration& individuals_, size_t countSurvivors_);
 
    // Мутация аргументов в предикате.
    void MutationArguments(TIntegrityLimitation& individual_, double ratio_) const;

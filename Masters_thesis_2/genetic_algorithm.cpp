@@ -148,8 +148,6 @@ void CGeneticAlgorithm::FillDataInFile(const QString& fileName_)
       Q_EMIT signalError(error);
       return;
    }
-
-   //SortRestriction(m_original);
 }
 
 QString CGeneticAlgorithm::StringVariables() const
@@ -169,7 +167,7 @@ QString CGeneticAlgorithm::StringIntegrityLimitation() const
 
 QString CGeneticAlgorithm::StringGeneration(bool bFitness_, size_t count_) const
 {
-   count_ = qMin(count_, m_vGenerations.size());
+   count_ = qMin(count_, m_generation.size());
 
    QString str;
 
@@ -177,14 +175,17 @@ QString CGeneticAlgorithm::StringGeneration(bool bFitness_, size_t count_) const
    {
       for (size_t iGen = 0; iGen < count_; ++iGen)
       {
-         str += QString("#%1 = %2%3").arg(iGen + 1).arg(FitnessFunction(m_vGenerations.at(iGen))).arg(NEW_LINE);
-         str += StringIntegrityLimitation(m_vGenerations.at(iGen), true);
+         const TIntLimAndFitness& conds = m_generation.at(iGen);
+         double valFitness = conds.second == -999. ? FitnessFunction(conds.first) : conds.second;
+
+         str += QString("#%1 = %2%3").arg(iGen + 1).arg(valFitness).arg(NEW_LINE);
+         str += StringIntegrityLimitation(conds.first, true);
       }
    }
    else
    {
       for (size_t iGen = 0; iGen < count_; ++iGen)
-         str += StringIntegrityLimitation(m_vGenerations.at(iGen), true);
+         str += StringIntegrityLimitation(m_generation.at(iGen).first, true);
    }
 
    str.chop(COUNT_SYMB_NEW_LINE);
@@ -315,15 +316,15 @@ void CGeneticAlgorithm::Start(int countIndividuals_, int countIterations_, doubl
 
       for (size_t iGeneration = 0; iGeneration < countIterations_; ++iGeneration)
       {
-         std::vector<TIntegrityLimitation> children;
+         TGeneration children;
          for (size_t iNewIndiv = 0; iNewIndiv < countIndividuals_ * 2; ++iNewIndiv)
          {
             // Селекция (выбор родителей) (турнирный отбор)
             size_t idxParent1, idxParent2;
             std::tie(idxParent1, idxParent2) = GetPairParents(countIndividuals_);
 
-            // Скрещивание
-            children.push_back(CrossingOnlyPredicates(m_vGenerations[idxParent1], m_vGenerations[idxParent2]));
+            // Скрещивание (нет смысла считать фитнес, все еще может поменяться).
+            children.push_back(std::make_pair(CrossingOnlyPredicates(m_generation[idxParent1].first, m_generation[idxParent2].first), -999.));
          }
 
          // Мутации
@@ -333,14 +334,14 @@ void CGeneticAlgorithm::Start(int countIndividuals_, int countIterations_, doubl
          if (percentMutationArguments_ > 0 && iGeneration < countIterations_ - countSkipMutationArg_)
             for (size_t iMutation = 0; iMutation < countMutation; ++iMutation)
             {
-               MutationArguments(children.at(m_rand.Generate(0, children.size() - 1)), percentMutationArguments_ * 0.01);
+               MutationArguments(children.at(m_rand.Generate(0, children.size() - 1)).first, percentMutationArguments_ * 0.01);
             }
 
          // Мутация предикатов
          if (percentMutationPredicates_ > 0 && iGeneration < countIterations_ - countSkipMutationPred_)
             for (size_t iMutation = 0; iMutation < countMutation; ++iMutation)
             {
-               MutationPredicates(children.at(m_rand.Generate(0, children.size() - 1)), percentMutationPredicates_ * 0.01);
+               MutationPredicates(children.at(m_rand.Generate(0, children.size() - 1)).first, percentMutationPredicates_ * 0.01);
             }
 
          // Селекция (полная замена, родителей "убиваем")
@@ -362,19 +363,18 @@ void CGeneticAlgorithm::Start(int countIndividuals_, int countIterations_, doubl
 
    Q_EMIT signalProgressUpdate(100);
    Q_EMIT signalEnd();
-
 }
 
 void CGeneticAlgorithm::Clear()
 {
    m_predicates.Clear();
    m_original.clear();
-   m_vGenerations.clear();
+   m_generation.clear();
 }
 
 bool CGeneticAlgorithm::HasGenerations() const
 {
-   return !m_vGenerations.empty();
+   return !m_generation.empty();
 }
 
 void CGeneticAlgorithm::SetLimitOfArgumentsChange(double from_)
@@ -450,7 +450,7 @@ void CGeneticAlgorithm::CreateFirstGenerationRandom(size_t count_)
    const size_t sizeOrigin = m_original.size();
    const size_t idxLastPredicates = m_predicates.CountPredicates() - 1;
 
-   m_vGenerations.clear();
+   m_generation.clear();
 
    for (size_t iGen = 0; iGen < count_; ++iGen)
    {
@@ -478,8 +478,7 @@ void CGeneticAlgorithm::CreateFirstGenerationRandom(size_t count_)
          conds[iCond] = cond;
       }
 
-      //SortRestriction(conds);
-      m_vGenerations.push_back(conds);
+      m_generation.push_back(std::make_pair(conds, FitnessFunction(conds)));
    }
 }
 
@@ -536,27 +535,30 @@ CGeneticAlgorithm::TIntegrityLimitation CGeneticAlgorithm::CrossingOnlyPredicate
       child.push_back(newCond);
    }
 
-   //SortRestriction(child);
-
    return child;
 }
 
-void CGeneticAlgorithm::Selection(const std::vector<TIntegrityLimitation>& individual_, size_t countSurvivors_)
+void CGeneticAlgorithm::Selection(const TGeneration& individuals_, size_t countSurvivors_)
 {
-   if (individual_.size() < countSurvivors_)
+   if (individuals_.size() < countSurvivors_)
       throw CException("Количество выживших не должно быть меньше самих особей", "Ошибка селекции", "CGeneticAlgorithm::Selection");
 
    std::multimap<double, size_t, std::greater<double>> mapIdx;
 
-   for (size_t iIndiv = 0; iIndiv < individual_.size(); ++iIndiv)
-      mapIdx.emplace(FitnessFunction(individual_[iIndiv]), iIndiv);
+   for (size_t iIndiv = 0; iIndiv < individuals_.size(); ++iIndiv)
+      mapIdx.emplace(FitnessFunction(individuals_[iIndiv].first), iIndiv);
 
-   m_vGenerations.clear();
+   m_generation.resize(countSurvivors_);
 
    auto itIdx = mapIdx.begin();
 
    for (size_t i = 0; i < countSurvivors_; ++i)
-      m_vGenerations.push_back(individual_[(itIdx++)->second]);
+   {
+      TIntLimAndFitness& child = m_generation[i];
+      child.first = individuals_[(itIdx)->second].first;
+      child.second = itIdx->first;
+      ++itIdx;
+   }
 }
 
 void CGeneticAlgorithm::MutationArguments(TIntegrityLimitation& individual_, double ratio_) const
@@ -761,19 +763,19 @@ CGeneticAlgorithm::SCounts CGeneticAlgorithm::quantitativeAssessment(const TPart
          bool bFoundPair = false;
          for (const auto& candidate : mapIdentical)
          {
-            const size_t idxInCond = candidate.second;
-            if (!vUsedPredInst.at(idxInCond))
+            const size_t indexPredecateInst = candidate.second;
+            if (!vUsedPredInst.at(indexPredecateInst))
             {
-               vUsedPredInst.at(idxInCond) = true;
+               vUsedPredInst.at(indexPredecateInst) = true;
                count.diffArg += candidate.first;
-               count.totalArg += m_predicates.CountArguments(verifiable_.at(idxInCond).idxPredicate);
+               count.totalArg += m_predicates.CountArguments(verifiable_.at(indexPredecateInst).idxPredicate);
                bFoundPair = true;
                break;
             }
          }
 
          if (bFoundPair)
-            count.matchPred += 2; // т.к. совпадают у обоих.
+            ++count.matchPred;
          else
             ++count.deletedPred;
       }
@@ -805,7 +807,7 @@ size_t CGeneticAlgorithm::SelectRandParent(size_t countIndividuals_) const
    while (first == second)
       second = m_rand.Generate();
 
-   return FitnessFunction(m_vGenerations[first]) < FitnessFunction(m_vGenerations[second]) ? second : first;
+   return m_generation[first].second < m_generation[second].second ? second : first;
 }
 
 std::pair<size_t, size_t> CGeneticAlgorithm::GetPairParents(size_t countIndividuals_) const
@@ -821,16 +823,11 @@ std::pair<size_t, size_t> CGeneticAlgorithm::GetPairParents(size_t countIndividu
 
 void CGeneticAlgorithm::SortGenerationDescendingOrder()
 {
-   std::multimap<double, TIntegrityLimitation, std::greater<double>> mapIdx;
-
-   for (const auto& individ : m_vGenerations)
-      mapIdx.emplace(FitnessFunction(individ), individ);
-
-   m_vGenerations.clear();
-
-   for (const auto& individ : mapIdx)
-      m_vGenerations.push_back(individ.second);
-
+   std::sort(m_generation.begin(), m_generation.end(),
+      [](const TIntLimAndFitness& a, const TIntLimAndFitness& b)
+      {
+         return a.second > b.second;
+      });
 }
 
 QString CGeneticAlgorithm::highlightBlock(const QString& str_, qsizetype& index_)

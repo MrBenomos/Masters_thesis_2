@@ -274,6 +274,9 @@
         <layout class="QHBoxLayout" name="horizontalLayout_2">
          <item>
           <widget class="QLabel" name="label">
+           <property name="toolTip">
+            <string>Если предикат остался, но поменялись все его аргументы, его цена будет такая.</string>
+           </property>
            <property name="text">
             <string>Цена нижней границы для аргументов</string>
            </property>
