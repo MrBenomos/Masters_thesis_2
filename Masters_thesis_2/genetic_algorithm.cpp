@@ -377,14 +377,13 @@ bool CGeneticAlgorithm::HasGenerations() const
    return !m_generation.empty();
 }
 
-void CGeneticAlgorithm::SetLimitOfArgumentsChange(double from_)
+void CGeneticAlgorithm::SetLimitOfArgumentsChange(double value_)
 {
-   if (from_ <= 0 || from_ >= 1)
+   if (value_ <= 0 || value_ >= 1)
       ERROR("Невозможно установить цену нижней границы для измененных аргументов выходящую за интервал (0; 1).",
          "Некорректное значение", "CGeneticAlgorithm::SetRangeOfArgumentsChange")
 
-   m_delta = 1 / from_;
-   m_delta_1 = m_delta - 1;
+   m_minCostForArgDif = value_;
 }
 
 void CGeneticAlgorithm::SetCostAddingPredicate(double cost_)
@@ -792,7 +791,7 @@ CGeneticAlgorithm::SCounts CGeneticAlgorithm::quantitativeAssessment(const TPart
 
 double CGeneticAlgorithm::getMultiplierArguments(size_t differences_, size_t total_) const
 {
-   return 1 - (differences_ * m_delta_1) / (total_ * m_delta);
+   return 1. - (differences_ * (1. - m_minCostForArgDif) / total_);
 }
 
 size_t CGeneticAlgorithm::SelectRandParent(size_t countIndividuals_) const
