@@ -1,0 +1,27 @@
+p1 p2 p3 p4 p5 s1 s2 s3 c1 c2 c3
+$
+Product(1)
+p1
+p2
+p3
+p4
+p5
+
+Sales(1)
+s1
+s2
+s3
+
+P(2)
+p1 s1
+p4 s1
+p4 s2
+p5 s2
+p1 s3 
+
+Q(2)
+ 
+
+$
+
+P(a, b) -> Q(b c)

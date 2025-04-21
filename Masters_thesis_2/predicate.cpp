@@ -12,9 +12,9 @@ static const QString INVALID_PREDICATE("Попытка обращения к п�
 // Неверный индекс таблицы истинности. #1 - Имя предиката, #2 - кол-во строк в таблице, #3 - индекс к которому пытались обратиться.
 static const QString INVALID_TABLE("Попытка обращения к таблице истинности с несуществующим индексом у предиката \"%1\". Всего строк: %2, попытка обращения к: %3");
 // Ошибка: невозможно изменить переменные.
-static const CException EXC_CANT_ADD_VARIABLE("Невозможно изменить набор переменных, после добавления хотя бы одного предиката.", "Ошибка изменения переменых", "CPredicates::SetVariables");
+static const CException EXC_CANT_ADD_VARIABLE("Невозможно изменить набор переменных, после добавления хотя бы одного предиката.", "Ошибка изменения переменых", "CPredicatesStorage::SetVariables");
 
-constexpr const char RESERVED_CHARACTERS[] = "(),=";
+constexpr const char RESERVED_CHARACTERS[] = "(),;";
 
 inline size_t pow(size_t base_, size_t exp_)
 {
@@ -73,7 +73,7 @@ const std::vector<size_t> SPredicate::GetArgs(size_t countVariables_, size_t ind
    return vArgs;
 }
 
-void CPredicates::SetVariables(const std::set<QString>& variables_)
+void CPredicatesStorage::SetVariables(const std::set<QString>& variables_)
 {
    if (!m_mapPredicates.empty() || !m_vPredicates.empty())
       throw EXC_CANT_ADD_VARIABLE;
@@ -85,14 +85,14 @@ void CPredicates::SetVariables(const std::set<QString>& variables_)
    for (const auto& var : variables_)
    {
       if (var.isEmpty())
-         throw CException("Некорректное имя переменной.", "Ошибка изменения переменых", "CPredicates::SetVariables");
+         throw CException("Некорректное имя переменной.", "Ошибка изменения переменых", "CPredicatesStorage::SetVariables");
 
       m_vVariables[idx] = var;
       m_mapVariables.emplace(var, idx++);
    }
 }
 
-bool CPredicates::SetVariables(const std::vector<QString>& variables_)
+bool CPredicatesStorage::SetVariables(const std::vector<QString>& variables_)
 {
    if (!m_mapPredicates.empty() || !m_vPredicates.empty())
       throw EXC_CANT_ADD_VARIABLE;
@@ -106,7 +106,7 @@ bool CPredicates::SetVariables(const std::vector<QString>& variables_)
    return variables_.size() == m_vVariables.size();
 }
 
-void CPredicates::SetVariables(const QString& str_)
+void CPredicatesStorage::SetVariables(const QString& str_)
 {
    if (!m_mapPredicates.empty() || !m_vPredicates.empty())
       throw EXC_CANT_ADD_VARIABLE;
@@ -119,7 +119,7 @@ void CPredicates::SetVariables(const QString& str_)
       QString name = highlightName(str_, i);
 
       if (name.isEmpty())
-         throw CException(QString("Ожидалось имя переменной. Встречен символ \'%1\'").arg(str_.at(i)), "Ошибка изменения переменых", "CPredicates::SetVariables");
+         throw CException(QString("Ожидалось имя переменной. Встречен символ \'%1\'").arg(str_.at(i)), "Ошибка изменения переменых", "CPredicatesStorage::SetVariables");
 
       setName.emplace(name);
       skipSpace(str_, i, ',');
@@ -128,35 +128,47 @@ void CPredicates::SetVariables(const QString& str_)
    SetVariables(setName);
 }
 
-void CPredicates::AddPredicates(const QString& str_)
+void CPredicatesStorage::AddPredicates(const QString& str_)
 {
    if (m_vVariables.empty() || m_mapVariables.empty())
-      throw CException("Невозможно создать предикат, список всех переменных пуст!", "Ошибка добавления предиката", "CPredicates::AddPredicates");
+      throw CException("Невозможно создать предикат, список всех переменных пуст!", "Ошибка добавления предиката", "CPredicatesStorage::AddPredicates");
 
    qsizetype length = str_.size();
+   QString nameNextPredicate;
+
    // Цикл по предикатам.
    for (qsizetype i = 0; i < length; /*++i*/)
    {
       SPredicate predicate;
 
-      if (skipSpace(str_, i))
-         break;
-
       // имя предиката
 
-      predicate.name = highlightName(str_, i);
+      if (nameNextPredicate.isEmpty())
+      {
+
+         if (skipSpace(str_, i))
+            break;
+
+         predicate.name = highlightName(str_, i);
+      }
+      else
+      {
+         predicate.name = nameNextPredicate;
+         nameNextPredicate.clear();
+      }
+
       if (predicate.name.isEmpty())
-         throw CException("Некорректное имя предиката.", "Ошибка добавления предиката", "CPredicates::AddPredicates");
+         throw CException("Некорректное имя предиката.", "Ошибка добавления предиката", "CPredicatesStorage::AddPredicates");
 
       // проверка существования
       auto it = m_mapPredicates.find(predicate.name);
       if (it != m_mapPredicates.end())
-         throw CException(QString("Попытка добавить предикат с уже существующим именем \"%1\".").arg(predicate.name), "Ошибка добавления предиката", "CPredicates::AddPredicates");
+         throw CException(QString("Попытка добавить предикат с уже существующим именем \"%1\".").arg(predicate.name), "Ошибка добавления предиката", "CPredicatesStorage::AddPredicates");
 
       skipSpace(str_, i, '(');
 
       if (skipSpace(str_, i))
-         throw CException(QString("Предикат \"%1\" не закончен. Нет количества аргументов и таблицы истинности.").arg(predicate.name), "Ошибка добавления предиката", "CPredicates::AddPredicates");
+         throw CException(QString("Предикат \"%1\" не закончен. Нет количества аргументов и таблицы истинности.").arg(predicate.name), "Ошибка добавления предиката", "CPredicatesStorage::AddPredicates");
 
       // число (кол-во аргументов)
 
@@ -170,81 +182,65 @@ void CPredicates::AddPredicates(const QString& str_)
       }
 
       if (numberArg == 0)
-         throw CException(QString("Ожидалось количество аргументов у предиката \"%1\". У предиката должо быть не менее 1 аргумента.").arg(predicate.name), "Ошибка добавления предиката", "CPredicates::AddPredicates");
+         throw CException(QString("Ожидалось количество аргументов у предиката \"%1\". У предиката должо быть не менее 1 аргумента.").arg(predicate.name), "Ошибка добавления предиката", "CPredicatesStorage::AddPredicates");
 
       skipSpace(str_, i, ')');
 
       // таблица истинности
       size_t tableSize = pow(m_vVariables.size(), static_cast<size_t>(numberArg));
-      size_t delta = 0; // используется, если в таблице несколько условий с одинаковыми переменными
-      predicate.table.resize(tableSize);
-      std::vector<bool> vTableFill(tableSize, false);
-      for (size_t iRow = 0; iRow < tableSize + delta; ++iRow)
+      predicate.table.assign(tableSize, false);
+      while (i < length)
       {
-         if (skipSpace(str_, i))
-            throw CException(QString("У предиката \"%1\" не закончена таблица истинности (или отсутствует). Ожидалось %2 выражений, имеется %3.").arg(predicate.name).arg(tableSize).arg(iRow), "Ошибка добавления предиката", "CPredicates::AddPredicates");
-
          // переменные
+         bool bHasVariables = false;
          std::vector<size_t> vIdxVar(numberArg, 0);
          for (size_t iVar = 0; iVar < numberArg; ++iVar)
          {
             if (skipSpace(str_, i))
-               throw CException(QString("Недостаточно переменных в строке таблицы истинности у предиката \"%1\". Ожидалось %2 переменных, имеется %3 в строке %4.").arg(predicate.name).arg(numberArg).arg(iVar).arg(iRow + delta + 1), "Ошибка добавления предиката", "CPredicates::AddPredicates");
+            {
+               if (iVar != 0)
+                  throw CException(QString("Недостаточно переменных в строке таблицы истинности у предиката \"%1\". Ожидалось %2 переменных, имеется %3.").arg(predicate.name).arg(numberArg).arg(iVar), "Ошибка добавления предиката", "CPredicatesStorage::AddPredicates");
+
+               break;
+            }
 
             QString var = highlightName(str_, i);
 
             if (var.isEmpty())
-               throw CException(QString("Некорректое имя переменной в таблице истинности у предиката \"%1\" в строке %2.").arg(predicate.name).arg(iRow + delta + 1), "Ошибка добавления предиката", "CPredicates::AddPredicates");
+               throw CException(QString("Некорректое имя переменной в таблице истинности у предиката \"%1\".").arg(predicate.name), "Ошибка добавления предиката", "CPredicatesStorage::AddPredicates");
 
             auto it = m_mapVariables.find(var);
             if (it == m_mapVariables.end())
-               throw CException(QString("Переменной \"%1\" нет в списке переменных. Встречено в таблице истинности у предиката \"%2\" в строке %3.").arg(var).arg(predicate.name).arg(iRow + delta + 1), "Ошибка добавления предиката", "CPredicates::AddPredicates");
+            {
+               if (iVar != 0)
+                  throw CException(QString("Переменной \"%1\" нет в списке переменных. Встречено в таблице истинности у предиката \"%2\".").arg(var).arg(predicate.name), "Ошибка добавления предиката", "CPredicatesStorage::AddPredicates");
+               else
+               {
+                  nameNextPredicate = var;
+                  break;
+               }
+            }
 
             vIdxVar[iVar] = it->second;
+            bHasVariables = true;
 
             skipSpace(str_, i, ',');
          }
 
-         // значение предиката для данных аргументов
-
-         skipSpace(str_, i, '=');
-         skipSpace(str_, i);
-
-         bool value;
-
-         if (i < length)
+         if (bHasVariables)
          {
-            if (str_.at(i) == '0')
-               value = false;
-            else if (str_.at(i) == '1')
-               value = true;
-            else
-               throw CException(QString("Некорректное значение предиката \"%1\" в строке %2. Ожидалось 0 или 1.").arg(predicate.name).arg(iRow + delta + 1), "Ошибка добавления предиката", "CPredicates::AddPredicates");
-         }
-         else
-            throw CException(QString("Ожидалось значение предиката \"%1\" в строке %2.").arg(predicate.name).arg(iRow + delta + 1), "Ошибка добавления предиката", "CPredicates::AddPredicates");
+            skipSpace(str_, i, ';');
 
-         ++i;
+            // Всевозможные проверки таблицы
+            size_t foundIndex = predicate.GetIndex(static_cast<size_t>(m_vVariables.size()), vIdxVar);
+            if (foundIndex >= tableSize)
+               throw CException("Ошибка индексирования! Обратитесь к разработчику.", "Ошибка добавления предиката", "CPredicatesStorage::AddPredicates");
 
-         skipSpace(str_, i, ',');
-
-
-         // Всевозможные проверки таблицы
-         size_t foundIndex = predicate.GetIndex(static_cast<size_t>(m_vVariables.size()), vIdxVar);
-         if (foundIndex >= tableSize)
-            throw CException("Ошибка индексирования! Обратитесь к разработчику.", "Ошибка добавления предиката", "CPredicates::AddPredicates");
-
-         if (vTableFill.at(foundIndex))
-         {
-            if (predicate.table.at(foundIndex) != value)
-               throw CException(QString("Обнаружена попытка переопределить значение для одних и тех же аргументов в предикате \"%1\" в строке %2.").arg(predicate.name).arg(iRow + delta + 1), "Ошибка добавления предиката", "CPredicates::AddPredicates");
-
-            ++delta;
+            predicate.table[foundIndex] = true;
          }
          else
          {
-            vTableFill[foundIndex] = true;
-            predicate.table[foundIndex] = value;
+            break;
          }
       }
 
@@ -255,7 +251,7 @@ void CPredicates::AddPredicates(const QString& str_)
    }
 }
 
-QString CPredicates::StringVariables() const
+QString CPredicatesStorage::StringVariables() const
 {
    QString strVariables;
 
@@ -270,7 +266,7 @@ QString CPredicates::StringVariables() const
    return strVariables;
 }
 
-QString CPredicates::StringPredicatesWithTable() const
+QString CPredicatesStorage::StringPredicatesWithTable() const
 {
    QString strPredicates;
 
@@ -285,19 +281,17 @@ QString CPredicates::StringPredicatesWithTable() const
       CCounter<size_t> counter(0, m_vVariables.size(), std::vector<size_t>(CountArguments(iPred), 0));
       for (size_t iArg = 0; iArg < m_vPredicates.at(iPred).table.size(); ++iArg)
       {
-         strPred.append(NEW_LINE);
-
-         const std::vector<size_t>& idxsVars = counter.data();
-
-         for (const auto& iVar : idxsVars)
-            strPred += m_vVariables.at(iVar) + ", ";
-
-         strPred.chop(2);
-
          if (GetValuePredicate(iPred, iArg))
-            strPred.append("= 1");
-         else
-            strPred.append("= 0");
+         {
+            strPred.append(NEW_LINE);
+
+            const std::vector<size_t>& idxsVars = counter.get();
+
+            for (const auto& iVar : idxsVars)
+               strPred += m_vVariables.at(iVar) + ", ";
+
+            strPred.chop(2);
+         }
 
          ++counter;
       }
@@ -311,18 +305,18 @@ QString CPredicates::StringPredicatesWithTable() const
    return strPredicates;
 }
 
-QString CPredicates::StringPredicateWithArg(size_t indexPredicate_, size_t indexArguments_) const
+QString CPredicatesStorage::StringPredicateWithArg(size_t indexPredicate_, size_t indexArguments_) const
 {
    if (indexPredicate_ >= m_vPredicates.size())
-      throw CException(INVALID_PREDICATE.arg(m_vPredicates.size()).arg(indexPredicate_), "Ошибка. Обратитесь к разработчику", "CPredicates::GetValuePredicate");
+      throw CException(INVALID_PREDICATE.arg(m_vPredicates.size()).arg(indexPredicate_), "Ошибка. Обратитесь к разработчику", "CPredicatesStorage::GetValuePredicate");
 
    if (indexArguments_ >= m_vPredicates.at(indexPredicate_).table.size())
-      throw CException(INVALID_TABLE.arg(GetPredicateName(indexPredicate_)).arg(m_vPredicates.at(indexPredicate_).table.size()).arg(indexArguments_), "Ошибка. Обратитесь к разработчику", "CPredicates::GetValuePredicate");
+      throw CException(INVALID_TABLE.arg(GetPredicateName(indexPredicate_)).arg(m_vPredicates.at(indexPredicate_).table.size()).arg(indexArguments_), "Ошибка. Обратитесь к разработчику", "CPredicatesStorage::GetValuePredicate");
 
    auto idxsVars = m_vPredicates.at(indexPredicate_).GetArgs(m_vVariables.size(), indexArguments_);
 
    if (idxsVars.empty())
-      throw CException("Обратитесь к разработчику.", "Непредвиденная ошибка", "CPredicates::StringPredicateWithArg");
+      throw CException("Обратитесь к разработчику.", "Непредвиденная ошибка", "CPredicatesStorage::StringPredicateWithArg");
 
    QString strPred = m_vPredicates.at(indexPredicate_).name + '(';
 
@@ -335,12 +329,12 @@ QString CPredicates::StringPredicateWithArg(size_t indexPredicate_, size_t index
    return strPred;
 }
 
-const std::vector<QString>& CPredicates::GetVariables() const
+const std::vector<QString>& CPredicatesStorage::GetVariables() const
 {
    return m_vVariables;
 }
 
-size_t CPredicates::GetIndexPredicate(const QString& namePredicate_) const
+size_t CPredicatesStorage::GetIndexPredicate(const QString& namePredicate_) const
 {
    auto it = m_mapPredicates.find(namePredicate_);
    if (it != m_mapPredicates.end())
@@ -349,7 +343,7 @@ size_t CPredicates::GetIndexPredicate(const QString& namePredicate_) const
    return SIZE_MAX;
 }
 
-size_t CPredicates::GetIndexArgument(size_t indexPredicate_, const std::vector<QString>& arguments_) const
+size_t CPredicatesStorage::GetIndexArgument(size_t indexPredicate_, const std::vector<QString>& arguments_) const
 {
    if (indexPredicate_ >= m_vPredicates.size())
       return SIZE_MAX;
@@ -367,45 +361,45 @@ size_t CPredicates::GetIndexArgument(size_t indexPredicate_, const std::vector<Q
    return m_vPredicates.at(indexPredicate_).GetIndex(static_cast<size_t>(m_vVariables.size()), args);
 }
 
-const SPredicate& CPredicates::GetPredicate(size_t indexPredicate_) const
+const SPredicate& CPredicatesStorage::GetPredicate(size_t indexPredicate_) const
 {
    if (indexPredicate_ >= m_vPredicates.size())
-      throw CException(INVALID_PREDICATE.arg(m_vPredicates.size()).arg(indexPredicate_), "Ошибка. Обратитесь к разработчику", "CPredicates::GetPredicate");
+      throw CException(INVALID_PREDICATE.arg(m_vPredicates.size()).arg(indexPredicate_), "Ошибка. Обратитесь к разработчику", "CPredicatesStorage::GetPredicate");
 
    return m_vPredicates.at(indexPredicate_);
 }
 
-bool CPredicates::GetValuePredicate(size_t indexPredicate_, size_t indexArguments_) const
+bool CPredicatesStorage::GetValuePredicate(size_t indexPredicate_, size_t indexArguments_) const
 {
    if (indexPredicate_ >= m_vPredicates.size())
-      throw CException(INVALID_PREDICATE.arg(m_vPredicates.size()).arg(indexPredicate_), "Ошибка. Обратитесь к разработчику", "CPredicates::GetValuePredicate");
+      throw CException(INVALID_PREDICATE.arg(m_vPredicates.size()).arg(indexPredicate_), "Ошибка. Обратитесь к разработчику", "CPredicatesStorage::GetValuePredicate");
 
    if (indexArguments_ >= m_vPredicates.at(indexPredicate_).table.size())
-      throw CException(INVALID_TABLE.arg(GetPredicateName(indexPredicate_)).arg(m_vPredicates.at(indexPredicate_).table.size()).arg(indexArguments_), "Ошибка. Обратитесь к разработчику", "CPredicates::GetValuePredicate");
+      throw CException(INVALID_TABLE.arg(GetPredicateName(indexPredicate_)).arg(m_vPredicates.at(indexPredicate_).table.size()).arg(indexArguments_), "Ошибка. Обратитесь к разработчику", "CPredicatesStorage::GetValuePredicate");
 
    return m_vPredicates.at(indexPredicate_).table.at(indexArguments_);
 }
 
-QString CPredicates::GetPredicateName(size_t indexPredicate_) const
+QString CPredicatesStorage::GetPredicateName(size_t indexPredicate_) const
 {
    if (indexPredicate_ >= m_vPredicates.size())
-      throw CException(INVALID_PREDICATE.arg(m_vPredicates.size()).arg(indexPredicate_), "Ошибка при получении имени предиката", "CPredicates::GetPredicateName");
+      throw CException(INVALID_PREDICATE.arg(m_vPredicates.size()).arg(indexPredicate_), "Ошибка при получении имени предиката", "CPredicatesStorage::GetPredicateName");
 
    return m_vPredicates.at(indexPredicate_).name;
 }
 
-std::vector<QString> CPredicates::GetArgumentVariables(size_t indexPredicate_, size_t indexArguments_) const
+std::vector<QString> CPredicatesStorage::GetArgumentVariables(size_t indexPredicate_, size_t indexArguments_) const
 {
    if (indexPredicate_ >= m_vPredicates.size())
-      throw CException(INVALID_PREDICATE.arg(m_vPredicates.size()).arg(indexPredicate_), "Ошибка при получении имен переменных из таблицы истинности", "CPredicates::GetArgumentVariables");
+      throw CException(INVALID_PREDICATE.arg(m_vPredicates.size()).arg(indexPredicate_), "Ошибка при получении имен переменных из таблицы истинности", "CPredicatesStorage::GetArgumentVariables");
 
    if (indexArguments_ >= m_vPredicates.at(indexPredicate_).table.size())
-      throw CException(INVALID_TABLE.arg(GetPredicateName(indexPredicate_)).arg(m_vPredicates.at(indexPredicate_).table.size()).arg(indexArguments_), "Ошибка при получении имен переменных из таблицы истинности", "CPredicates::GetArgumentVariables");
+      throw CException(INVALID_TABLE.arg(GetPredicateName(indexPredicate_)).arg(m_vPredicates.at(indexPredicate_).table.size()).arg(indexArguments_), "Ошибка при получении имен переменных из таблицы истинности", "CPredicatesStorage::GetArgumentVariables");
 
    auto vIdxVariable = m_vPredicates.at(indexPredicate_).GetArgs(m_vVariables.size(), indexArguments_);
 
    if (vIdxVariable.empty())
-      throw CException("Непредвиденная ошибка.", "Ошибка", "CPredicates::GetArgumentVariables");
+      throw CException("Непредвиденная ошибка.", "Ошибка", "CPredicatesStorage::GetArgumentVariables");
 
    std::vector<QString> vNameVariable(vIdxVariable.size());
 
@@ -415,30 +409,30 @@ std::vector<QString> CPredicates::GetArgumentVariables(size_t indexPredicate_, s
    return vNameVariable;
 }
 
-bool CPredicates::IsEmpty() const
+bool CPredicatesStorage::IsEmpty() const
 {
    return m_vPredicates.empty() || m_mapPredicates.empty();
 }
 
-size_t CPredicates::CountPredicates() const
+size_t CPredicatesStorage::CountPredicates() const
 {
    return m_vPredicates.size();
 }
 
-size_t CPredicates::CountVariables() const
+size_t CPredicatesStorage::CountVariables() const
 {
    return m_vVariables.size();
 }
 
-size_t CPredicates::CountArguments(size_t indexPredicate_) const
+size_t CPredicatesStorage::CountArguments(size_t indexPredicate_) const
 {
    if (indexPredicate_ >= m_vPredicates.size())
-      throw CException(INVALID_PREDICATE.arg(m_vPredicates.size()).arg(indexPredicate_), "Ошибка. Обратитесь к разработчику", "CPredicates::GetCountArguments");
+      throw CException(INVALID_PREDICATE.arg(m_vPredicates.size()).arg(indexPredicate_), "Ошибка. Обратитесь к разработчику", "CPredicatesStorage::GetCountArguments");
 
    return intLog(m_vVariables.size(), m_vPredicates.at(indexPredicate_).table.size());
 }
 
-void CPredicates::Clear()
+void CPredicatesStorage::Clear()
 {
    m_mapVariables.clear();
    m_vVariables.clear();
@@ -446,7 +440,7 @@ void CPredicates::Clear()
    m_vPredicates.clear();
 }
 
-bool CPredicates::isIllegalSymbol(QChar symb_)
+bool CPredicatesStorage::isIllegalSymbol(QChar symb_)
 {
    for (char ch : RESERVED_CHARACTERS)
       if (symb_ == ch)
@@ -455,7 +449,7 @@ bool CPredicates::isIllegalSymbol(QChar symb_)
    return false;
 }
 
-QString CPredicates::highlightName(const QString& str_, qsizetype& index_)
+QString CPredicatesStorage::highlightName(const QString& str_, qsizetype& index_)
 {
    qsizetype start = index_;
 

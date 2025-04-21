@@ -68,6 +68,11 @@
       <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
   </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
+    </ClCompile>
+  </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x64'" Label="Configuration">
     <ClCompile>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
@@ -97,6 +102,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="parser_template_predicates.cpp" />
     <ClCompile Include="predicate.cpp" />
     <ClCompile Include="viewer.cpp" />
     <QtRcc Include="main_widget.qrc" />
@@ -113,6 +119,7 @@
     <ClInclude Include="counter.h" />
     <ClInclude Include="exception.h" />
     <ClInclude Include="global.h" />
+    <ClInclude Include="parser_template_predicates.h" />
     <ClInclude Include="predicate.h" />
     <ClInclude Include="random.h" />
   </ItemGroup>

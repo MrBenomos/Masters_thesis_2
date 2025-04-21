@@ -7,35 +7,16 @@
 
 #include "random.h"
 #include "predicate.h"
-#include "exception.h"
+#include "parser_template_predicates.h"
 
 class QTextStream;
+class CException;
 
 class CGeneticAlgorithm : public QObject
 {
    Q_OBJECT
 
    // ================================ С т р у к т у р ы ================================
-
-   // Экземпляр предиката.
-   struct SPredicateInstance
-   {
-      size_t idxPredicate; // индекс предиката
-      size_t idxTable;     // индекс из таблицы истинности для набора аргументов
-
-      SPredicateInstance(size_t idxPredicat_, size_t idxTable_) : idxPredicate(idxPredicat_), idxTable(idxTable_) {}
-   };
-
-   using TPartCondition = std::vector<SPredicateInstance>;
-
-   // Условие целостности (одно).
-   struct SCondition
-   {
-      TPartCondition left; // левая часть (X -> ...)
-      TPartCondition right; // правая часть (... -> X)
-
-      inline size_t GeneralCount() const { return left.size() + right.size(); }
-   };
 
    // Для фитнес функции - количества.
    struct SCounts
@@ -58,7 +39,7 @@ class CGeneticAlgorithm : public QObject
    // =============================== П е р е м е н н ы е ===============================
 
    // Предикаты (там же хранятся и переменные).
-   CPredicates m_predicates;
+   CPredicatesStorage m_storage;
 
    // Изначальное ограничение целостности (для финтес ф-ции). 
    TIntegrityLimitation m_original;
@@ -169,7 +150,7 @@ private:
    TIntegrityLimitation CrossingOnlyPredicates(const TIntegrityLimitation& parent1_, const TIntegrityLimitation& parent2_) const;
 
    // Селекция. Выбираются лучшие (по фитнесс функции) CountSurvivors_ особей из individuals_, т.е. полная замена, родителей "убиваем".
-   void Selection(const TGeneration& individuals_, size_t countSurvivors_);
+   void Selection(TGeneration&& individuals_, size_t countSurvivors_);
 
    // Мутация аргументов в предикате.
    void MutationArguments(TIntegrityLimitation& individual_, double ratio_) const;
@@ -194,7 +175,7 @@ private:
    std::pair<size_t, size_t> GetPairParents(size_t countIndividuals_) const;
 
    // Сортирует поколение в порядке убывания фитнес функции.
-   void SortGenerationDescendingOrder();
+   void SortGenerationDescendingOrder(TGeneration& generation_) const;
 
    // Фитнес функция.
    // Возвращает значение приспособленности (фитнеса) для ограничения целостности.
@@ -213,9 +194,9 @@ private:
 
    // ----------------------- Вспомогательные функции для фитнеса -----------------------
 
-   // Возвращает индексы предикатов в условии, которые имеют такой же индекс как и у sample_ в порядке возрастания отличий в аргументах.
+   // Возвращает индексы предикатов из условия, которые совпадают с sample_, и количество отличий в порядке возрастания отличий в аргументах.
    // Возвращает multimap<число_отличий, индекс_предиката>.
-   std::multimap<int, size_t> findMinDifference(const SPredicateInstance& sample_, const TPartCondition& verifiable_) const;
+   std::multimap<int, size_t> findMinDifference(const SPredicateTemplate& sample_, const TPartCondition& verifiable_) const;
 
    // Количественная оценка.
    // Возвращает:
@@ -230,9 +211,6 @@ private:
    double getMultiplierArguments(size_t differences_, size_t total_) const;
 
    // --------------------------- Функции работы со строками ----------------------------
-
-   // Получает экземпляр предиката из строки (с аргументами).
-   SPredicateInstance getPredicate(const QString& str_, qsizetype& index_) const;
 
    static QString highlightBlock(const QString& str_, qsizetype& index_);
    static QString highlightName(const QString& str_, qsizetype& index_);
