@@ -5,6 +5,7 @@
 #include <QTimer>
 
 #include "viewer.h"
+#include "exception.h"
 
 MainWidget::MainWidget(QWidget *parent) :
     QMainWindow(parent), ui(new Ui::MainWidgetClass())

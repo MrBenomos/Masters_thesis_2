@@ -46,6 +46,6 @@ public:
    void title(const STR& newTitle_) { m_title = newTitle_; }
    void location(const STR& newLocation_) { m_location = newLocation_; }
 
-   void addToBeginningMessage(const STR& text_) { m_message.insert(0, text_.operator std::string().append(SEPARATOR)); }
-   void addToEndMessage(const STR& text_) { m_message.append(text_.operator std::string().insert(0, SEPARATOR)); }
+   void addToBeginningMessage(const STR& text_, std::string separator_ = SEPARATOR) { m_message.insert(0, static_cast<std::string>(text_).append(separator_)); }
+   void addToEndMessage(const STR& text_, std::string separator_ = SEPARATOR) { m_message.append(static_cast<std::string>(text_).insert(0, separator_)); }
 };
