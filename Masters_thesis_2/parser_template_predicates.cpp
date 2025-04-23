@@ -18,7 +18,7 @@ static bool hasSymbol(const QString& str_, qsizetype& index_, QChar symbol_)
 // Возвращает true, если symbol_ является зарезервированным символом, false - иначе.
 static bool isIllegalSymbol(QChar symbol_)
 {
-   const QChar illegalSymbols[] = { ',', '-','>', '$', '(', ')', SYMBOL_COMPLETION_CONDEITION };
+   const QChar illegalSymbols[] = { ',', '-','>', '$', '(', ')', '~', SYMBOL_COMPLETION_CONDEITION};
 
    for (const auto& illegal : illegalSymbols)
       if (symbol_ == illegal)
@@ -44,6 +44,63 @@ static QString highlightName(const QString& str_, qsizetype& index_)
 }
 
 // =-=-=-=-=-=-=-=-=-=-=-=-=-= Методы класса =-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+bool SPredicateTemplate::operator<(const SPredicateTemplate& predTempl_) const
+{
+   if (idxPredicate < predTempl_.idxPredicate)
+      return true;
+   else if (idxPredicate == predTempl_.idxPredicate)
+   {
+      return arguments < predTempl_.arguments;
+   }
+
+   return false;
+}
+
+void SCondition::ForEachPredicate(std::function<void(SPredicateTemplate&)> callback_)
+{
+   for (SPredicateTemplate& predTempl : left)
+      callback_(predTempl);
+
+   for (SPredicateTemplate& predTempl : right)
+      callback_(predTempl);
+}
+
+void SCondition::ForEachPredicate(std::function<void(const SPredicateTemplate&)> callback_) const
+{
+   for (const SPredicateTemplate& predTempl : left)
+      callback_(predTempl);
+
+   for (const SPredicateTemplate& predTempl : right)
+      callback_(predTempl);
+}
+
+void SCondition::ForEachArgument(std::function<void(int&)> callback_)
+{
+   ForEachPredicate([&callback_](SPredicateTemplate& predTempl)
+      {
+         for (int& arg : predTempl.arguments)
+            callback_(arg);
+      });
+}
+
+void SCondition::ForEachArgument(std::function<void(int)> callback_) const
+{
+   ForEachPredicate([&callback_](const SPredicateTemplate& predTempl)
+      {
+         for (int arg : predTempl.arguments)
+            callback_(arg);
+      });
+}
+
+void SCondition::RecalculateMaximum()
+{
+   ForEachArgument([&](int arg)
+      {
+         if (arg > maxArgument)
+            maxArgument = arg;
+      });
+}
 
 CParserTemplatePredicates::CParserTemplatePredicates(const CPredicatesStorage* storage_) :
 	m_storage(storage_)
@@ -115,13 +172,23 @@ SPredicateTemplate CParserTemplatePredicates::getPredicate(const QString& str_, 
 
       QString nameArg = highlightName(str_, index_);
       if (nameArg.isEmpty())
-         throw CException(QString("Некорректное имя переменной у аргумента предиката \"%1\"").arg(predicateName));
+      {
+         if (index_ < str_.size() && str_.at(index_) == '~')
+         {
+            ++index_;
+            vArguments[iArg] = -1;
+         }
+         else
+            throw CException(QString("Некорректное имя переменной у аргумента предиката \"%1\"").arg(predicateName));
+      }
+      else
+      {
+         auto itTemplArg = mapTemplateArgs_.find(nameArg);
+         if (itTemplArg == mapTemplateArgs_.end())
+            itTemplArg = mapTemplateArgs_.emplace(nameArg, ++maxArg_).first;
 
-      auto itTemplArg = mapTemplateArgs_.find(nameArg);
-      if (itTemplArg == mapTemplateArgs_.end())
-         itTemplArg = mapTemplateArgs_.emplace(nameArg, ++maxArg_).first;
-
-      vArguments[iArg] = itTemplArg->second;
+         vArguments[iArg] = itTemplArg->second;
+      }
 
       skipSpace(str_, index_, ',');
    }
@@ -146,6 +213,9 @@ QString CParserTemplatePredicates::GetStringTemplatePredicate(const SPredicateTe
 
 QString CParserTemplatePredicates::GetLetterDesignationByNumber(int value_)
 {
+   if (value_ == -1)
+      return QString('~');
+
    const int number = value_ / 26;
    const char letter = 'a' + value_ % 26;
    QString result(letter);
@@ -153,49 +223,4 @@ QString CParserTemplatePredicates::GetLetterDesignationByNumber(int value_)
       result.append(QString::number(number));
 
    return result;
-}
-
-void SCondition::ForEachPredicate(std::function<void(SPredicateTemplate&)> callback_)
-{
-   for (SPredicateTemplate& predTempl : left)
-      callback_(predTempl);
-
-   for (SPredicateTemplate& predTempl : right)
-      callback_(predTempl);
-}
-
-void SCondition::ForEachPredicate(std::function<void(const SPredicateTemplate&)> callback_) const
-{
-   for (const SPredicateTemplate& predTempl : left)
-      callback_(predTempl);
-
-   for (const SPredicateTemplate& predTempl : right)
-      callback_(predTempl);
-}
-
-void SCondition::ForEachArgument(std::function<void(int&)> callback_)
-{
-   ForEachPredicate([&callback_](SPredicateTemplate& predTempl)
-      {
-         for (int& arg : predTempl.arguments)
-            callback_(arg);
-      });
-}
-
-void SCondition::ForEachArgument(std::function<void(int)> callback_) const
-{
-   ForEachPredicate([&callback_](const SPredicateTemplate& predTempl)
-      {
-         for (int arg : predTempl.arguments)
-            callback_(arg);
-      });
-}
-
-void SCondition::RecalculateMaximum()
-{
-   ForEachArgument([&](int arg)
-      {
-         if (arg > maxArgument)
-            maxArgument = arg;
-      });
 }

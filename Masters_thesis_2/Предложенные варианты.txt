@@ -1,0 +1,40 @@
+Favorite_category(a, b) Purchases(a, c) -> Book_Descriptor(c, b);
+
+Purchases(a, c) Favorite_category(a, b) -> Book_Descriptor(c, ~) Book_Descriptor(c, b);
+Favorite_category(a, b) Purchases(c, c) -> Book_Descriptor(c, b);
+Favorite_category(a, b) Purchases(b, c) -> Book_Descriptor(c, b);
+Purchases(a, b) Favorite_category(a, b) -> Book_Descriptor(c, b);
+
+===== 2
+
+Book_Descriptor(a, ~) -> Books_writing(a, ~);
+
+Book_Descriptor(a, ~) -> Books_writing(a, ~);
+
+===== 3
+
+Book_Descriptor(a, ~) -> Purchases(~, a);
+
+Book_Descriptor(a, ~) -> Books_writing(a, ~) Purchases(~, a);
+
+===== 4
+
+Members(a) -> Purchases(a, ~);
+
+Book_Descriptor(c, a) Members(a) -> Purchases(a, ~);
+Members(a) Autors(a) -> Purchases(a, ~);
+Members(a) Favorite_category(b, a) -> Purchases(a, ~);
+Members(a) -> Purchases(a, ~) Favorite_category(a, ~);
+
+===== 5 
+
+Books_writing(~, a) -> Autors(a);
+
+Books_writing(~, a) -> Autors(a);
+
+===== 6
+
+Catigories(a) -> Book_Descriptor(~, a);
+
+Catigories(a, ~) Members(a, b) -> Book_Descriptor(~, a);
+Catigories(a, ~) Book_Descriptor(b, b) -> Book_Descriptor(~, a);

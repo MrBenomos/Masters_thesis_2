@@ -1,0 +1,66 @@
+A1, A2, A3, A4, A5, A6, B1, B2, B3, B4, B5, B6, C1, C2, C3, C4, C5, M1, M2, M3, M4, M5, "1984", "Brave_New_World", "To_Kill_a_Mockingbird", "A_Brief_History_of_Time", "The_Selfish_Gene", "Harry_Potter_and_the_Goblet", 1949, 1932, 1960, 1988, 1976, 2000,
+George_Orwell, Aldous_Huxley, Harper_Lee, Stephen_Hawking, Richard_Dawkins, J.K._Rowling, Alice_Smith, Bob_Johnson, Carol_White, David_Brown, Emma_Davis, 1903, 1894, 1926, 1942, 1941, 1965, 2023-01-12, 2022-11-23, 2024-03-05, 2023-07-19,
+2022-09-30, Dystopian, Classic_Fiction, Science, Fantasy, Biography
+
+$
+
+Book_Descriptor(3)
+B1, C1, "1984"
+B2, C1, "Brave_New_World"
+B3, C2, "To_Kill_a_Mockingbird"
+B4, C3, "A_Brief_History_of_Time"
+B5, C3, "The_Selfish_Gene"
+B6, C4, "Harry_Potter_and_the_Goblet"
+
+Books_writing(3)
+B1, A1, 1949
+B2, A2, 1932
+B3, A3, 1960
+B4, A4, 1988
+B5, A5, 1976
+B6, A6, 2000
+
+Autors(3)
+A1, George_Orwell,   1903
+A2, Aldous_Huxley,   1894
+A3, Harper_Lee,      1926
+A4, Stephen_Hawking, 1942
+A5, Richard_Dawkins, 1941
+A6, J.K._Rowling,    1965
+
+Members(3)
+M1, Alice_Smith, 2023-01-12
+M2, Bob_Johnson, 2022-11-23
+M3, Carol_White, 2024-03-05
+M4, David_Brown, 2023-07-19
+M5, Emma_Davis,  2022-09-30
+
+Catigories(2)
+C1, Dystopian
+C2, Classic_Fiction
+C3, Science
+C4, Fantasy
+C5, Biography
+
+Purchases(2)
+M1, B1
+M1, B4
+M2, B2
+M3, B6
+M4, B5
+
+Favorite_category(2)
+M1, C3
+M2, C1
+M3, C4
+M4, C3
+M5, C2
+
+$
+
+Favorite_category(a, b) Purchases(a, c) -> Book_Descriptor(c, b, ~);
+Book_Descriptor(a, ~, ~) -> Books_writing(a, ~, ~);
+Book_Descriptor(a, ~, ~,) -> Purchases(~, a);
+Members(a, ~, ~) -> Purchases(a, ~);
+Books_writing(~, a, ~) -> Autors(a, ~, ~);
+Catigories(a, ~) -> Book_Descriptor(~, a, ~);

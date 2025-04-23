@@ -10,8 +10,9 @@ CViewer::CViewer(QWidget* parent_, const CGeneticAlgorithm* algorithm_) :
    connect(ui->cbPredicates, &QCheckBox::checkStateChanged, this, &CViewer::UpdateText);
    connect(ui->cbIntegrityLimitation, &QCheckBox::checkStateChanged, this, &CViewer::UpdateText);
    connect(ui->cbGeneration, &QCheckBox::checkStateChanged, this, &CViewer::UpdateText);
-   connect(ui->sbCountGeneration, &QSpinBox::valueChanged, this, &CViewer::UpdateText);
    connect(ui->cbFitness, &QCheckBox::checkStateChanged, this, &CViewer::UpdateText);
+   connect(ui->chTrueCondition, &QCheckBox::checkStateChanged, this, &CViewer::UpdateText);
+   connect(ui->sbCountGeneration, &QSpinBox::valueChanged, this, &CViewer::UpdateText);
 }
 
 CViewer::~CViewer()
@@ -33,6 +34,7 @@ void CViewer::UpdateText() const
          ui->cbIntegrityLimitation->isChecked(),
          ui->cbGeneration->isChecked(),
          ui->cbFitness->isChecked(),
+         ui->chTrueCondition->isChecked(),
          ui->sbCountGeneration->value()
       ));
 }

@@ -13,8 +13,11 @@ struct SPredicateTemplate
    std::vector<int> arguments; // аргументы
 
    SPredicateTemplate() = default;
+   SPredicateTemplate(const SPredicateTemplate&) = default;
    SPredicateTemplate(size_t idxPredicate_, const std::vector<int> arguments_) :
       idxPredicate(idxPredicate_), arguments(arguments_) {}
+
+   bool operator<(const SPredicateTemplate& predTempl_) const;
 };
 
 using TPartCondition = std::vector<SPredicateTemplate>;

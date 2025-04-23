@@ -1,0 +1,60 @@
+A1, A2, A3, A4, A5, A6, B1, B2, B3, B4, B5, B6, C1, C2, C3, C4, C5, M1, M2, M3, M4, M5,
+George_Orwell, Aldous_Huxley, Harper_Lee, Stephen_Hawking, Richard_Dawkins, J.K._Rowling, Alice_Smith, Bob_Johnson, Carol_White, David_Brown, Emma_Davis, Dystopian, Classic_Fiction, Science, Fantasy, Biography
+
+$
+
+Book_Descriptor(2)
+B1, C1
+B2, C1
+B3, C2
+B4, C3
+B5, C3
+B6, C4
+
+Books_writing(2)
+B1, A1
+B2, A2
+B3, A3
+B4, A4
+B5, A5
+B6, A6
+
+Autors(2)
+A1, George_Orwell
+A2, Aldous_Huxley
+A3, Harper_Lee
+A4, Stephen_Hawking
+A5, Richard_Dawkins
+A6, J.K._Rowling
+
+Members(2)
+M1, Alice_Smith
+M2, Bob_Johnson
+M3, Carol_White
+M4, David_Brown
+M5, Emma_Davis
+
+Catigories(2)
+C1, Dystopian
+C2, Classic_Fiction
+C3, Science
+C4, Fantasy
+C5, Biography
+
+Purchases(2)
+M1, B1
+M1, B4
+M2, B2
+M3, B6
+M4, B5
+
+Favorite_category(2)
+M1, C3
+M2, C1
+M3, C4
+M4, C3
+M5, C2
+
+$
+
+Books_writing(~, a) -> Autors(a, ~);

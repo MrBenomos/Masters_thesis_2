@@ -72,7 +72,7 @@ public:
    QString StringPredicates() const;
 
    // Возвращает строку с ограничением целостности.
-   QString StringIntegrityLimitation() const;
+   QString StringIntegrityLimitation(bool bTrueCondition_ = false) const;
 
    // Возвращает строку с поклоениями. Выводит первые count_ особей.
    // Чтобы вывести все поколения оставьте значение по умолчанию.
@@ -85,8 +85,9 @@ public:
    // bIntegrityLimitation_ - Записать исходное ограничение целостности.
    // bGenerations_ - Записать поколения.
    // bFitness - Выводить значение фитнес функции.
+   // bTrueCondition_ - Истинность каждого условия.
    // countIndividuals_ - Количество первых особей.
-   QString StringCustom(bool bVariables_ = true, bool bPredicates_ = true, bool bIntegrityLimitation_ = true, bool bGeneration_ = true, bool bFitness_ = true, size_t countIndividuals_ = SIZE_MAX) const;
+   QString StringCustom(bool bVariables_ = true, bool bPredicates_ = true, bool bIntegrityLimitation_ = true, bool bGeneration_ = true, bool bFitness_ = true, bool bTrueCondition_ = false, size_t countIndividuals_ = SIZE_MAX) const;
 
    // Запись в файл.
    // fileName_ - имя файла.
@@ -94,9 +95,11 @@ public:
    // bPredicates_ - Записать предикаты и их таблицы истинности.
    // bIntegrityLimitation_ - Записать исходное ограничение целостности.
    // bGenerations_ - Записать поколения.
+   // bFitness - Выводить значение фитнес функции.
+   // bTrueCondition_ - Истинность каждого условия.
    // countIndividuals_ - Количество первых особей.
    // !> emit signal error.
-   void WriteInFile(const QString& fileName_, bool bVariables_ = true, bool bPredicates_ = true, bool bIntegrityLimitation_ = true, bool bGeneration_ = true, bool bFitness_ = true, size_t countIndividuals_ = SIZE_MAX) const;
+   void WriteInFile(const QString& fileName_, bool bVariables_ = true, bool bPredicates_ = true, bool bIntegrityLimitation_ = true, bool bGeneration_ = true, bool bFitness_ = true, bool bTrueCondition_ = false, size_t countIndividuals_ = SIZE_MAX) const;
 
    // Запустить алгоритм с заданием параметров.
    // countIndividuals_ - количество особей
@@ -141,7 +144,7 @@ private:
    QString StringCondition(const SCondition& condition_) const;
 
    // Записывает ограничение целостности в строку.
-   QString StringIntegrityLimitation(const TIntegrityLimitation& integrityLimitation_, bool bInsertNewLine_ = false) const;
+   QString StringIntegrityLimitation(const TIntegrityLimitation& integrityLimitation_, bool bInsertNewLine_ = false, bool bTrueCondition_ = false) const;
 
    // Сгенерировать первое поколение рандомно.
    void CreateFirstGenerationRandom(size_t count_);
