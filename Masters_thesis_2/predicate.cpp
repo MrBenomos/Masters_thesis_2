@@ -16,7 +16,7 @@ static const CException EXC_CANT_ADD_VARIABLE("Невозможно измени
 
 constexpr const char RESERVED_CHARACTERS[] = "(),;";
 
-inline size_t pow(size_t base_, size_t exp_)
+static size_t pow(size_t base_, size_t exp_)
 {
    size_t result = 1;
    while (exp_ > 0)
@@ -31,9 +31,21 @@ inline size_t pow(size_t base_, size_t exp_)
    return result;
 }
 
-inline size_t intLog(size_t base_, size_t x_)
+static size_t intLog(size_t base_, size_t x_)
 {
    return static_cast<size_t>(log(x_) / log(base_) + 0.01);
+}
+
+size_t GetIndex(size_t countVariables_, const std::vector<size_t>& args_)
+{
+   size_t index = 0;
+   for (const auto& arg : args_)
+   {
+      index *= countVariables_;
+      index += arg;
+   }
+
+   return index;
 }
 
 size_t SPredicate::GetIndex(size_t countVariables_, const std::vector<size_t>& args_) const
