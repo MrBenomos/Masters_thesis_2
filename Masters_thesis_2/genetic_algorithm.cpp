@@ -300,15 +300,15 @@ void CGeneticAlgorithm::Start(int countIndividuals_, int countIterations_, doubl
 
       for (size_t iGeneration = 0; iGeneration < countIterations_; ++iGeneration)
       {
-         TGeneration children;
-         for (size_t iNewIndiv = 0; iNewIndiv < countIndividuals_ * 2; ++iNewIndiv)
+         TGeneration children(countIndividuals_ * 2);
+         for (size_t iNewIndiv = 0; iNewIndiv < children.size(); ++iNewIndiv)
          {
             // Селекция (выбор родителей) (турнирный отбор)
             size_t idxParent1, idxParent2;
             std::tie(idxParent1, idxParent2) = GetPairParents(countIndividuals_);
 
             // Скрещивание (нет смысла считать фитнес, все еще может поменяться).
-            children.push_back(std::make_pair(CrossingOnlyPredicates(m_generation[idxParent1].first, m_generation[idxParent2].first), -999.));
+            children[iNewIndiv] = std::make_pair(CrossingOnlyPredicates(m_generation[idxParent1].first, m_generation[idxParent2].first), -999.);
          }
 
          // Мутации
@@ -718,7 +718,7 @@ bool CGeneticAlgorithm::IsTrueCondition(const SCondition& Cond_) const
                {
                   if (newVArg[iArg] != -1)
                   {
-                     arg[iArg] = vSubstitution.at(static_cast<size_t>(newVArg[iArg]));
+                     arg[iArg] = static_cast<int>(vSubstitution.at(static_cast<size_t>(newVArg[iArg])));
                      fixedArg.push_back(vSubstitution.at(static_cast<size_t>(newVArg[iArg])));
                   }
                }
