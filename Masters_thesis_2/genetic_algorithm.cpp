@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <memory>
+#include <cmath>
 
 #include <QFile>
 #include <QTextStream>
@@ -8,6 +9,7 @@
 #include "exception.h"
 #include "global.h"
 #include "counter.h"
+#include "custom_math.h"
 
 #define SPLITTER "===================="
 
@@ -79,27 +81,6 @@ static void bringArgumentsBackToNormal(SCondition& condition_)
 CGeneticAlgorithm::CGeneticAlgorithm()
 {
    m_rand.UseNewNumbers();
-}
-
-void CGeneticAlgorithm::SetConditionsFromString(const QString& str_)
-{
-   qsizetype length = str_.length();
-   try
-   {
-      CParserTemplatePredicates parser(&m_storage);
-      for (const QString& condition : str_.split(SYMBOL_COMPLETION_CONDEITION))
-         if (!condition.isEmpty())
-            m_original.push_back(parser.Parse(condition));
-
-      if (m_original.empty())
-         throw CException("Нет ограничения целостности!");
-   }
-   catch (CException& error)
-   {
-      error.title("Ошибка добавления условия целостности");
-      error.location("CGeneticAlgorithm::SetConditionFromString");
-      throw error;
-   }
 }
 
 void CGeneticAlgorithm::FillDataInFile(const QString& fileName_)
@@ -343,7 +324,12 @@ void CGeneticAlgorithm::Start(int countIndividuals_, int countIterations_, doubl
       SortGenerationDescendingOrder(m_generation);
    }
    catch (const CException& error)
-      EXEPTSIGNAL(error)
+   {
+         Q_EMIT signalError(error);
+         Q_EMIT signalEnd();
+         return;
+   }
+      //EXEPTSIGNAL(error)
 
    Q_EMIT signalProgressUpdate(100);
    Q_EMIT signalEnd();
@@ -390,6 +376,27 @@ bool CGeneticAlgorithm::isIllegalSymbol(QChar symbol_)
    return false;
 }
 
+void CGeneticAlgorithm::SetConditionsFromString(const QString& str_)
+{
+   qsizetype length = str_.length();
+   try
+   {
+      CParserTemplatePredicates parser(&m_storage);
+      for (const QString& condition : str_.split(SYMBOL_COMPLETION_CONDEITION))
+         if (!condition.isEmpty())
+            m_original.push_back(parser.Parse(condition));
+
+      if (m_original.empty())
+         throw CException("Нет ограничения целостности!");
+   }
+   catch (CException& error)
+   {
+      error.title("Ошибка добавления условия целостности");
+      error.location("CGeneticAlgorithm::SetConditionFromString");
+      throw error;
+   }
+}
+
 QString CGeneticAlgorithm::StringCondition(const SCondition& condition_) const
 {
    CParserTemplatePredicates parser(&m_storage);
@@ -414,7 +421,7 @@ QString CGeneticAlgorithm::StringIntegrityLimitation(const TIntegrityLimitation&
       str += StringCondition(condition);
       if (bTrueCondition_)
       {
-         QString bTrueCondition = IsTrueCondition(condition) ? "true" : "false";
+         QString bTrueCondition = IsTrueCondition(condition).first ? "true" : "false";
          str += " (" + bTrueCondition + ')';
       }
       str += NEW_LINE;
@@ -651,7 +658,7 @@ bool CGeneticAlgorithm::IsCorrectCondition(const SCondition& Cond_) const
    return bNoAnyPred;
 }
 
-bool CGeneticAlgorithm::IsTrueCondition(const SCondition& Cond_) const
+std::pair<bool, bool> CGeneticAlgorithm::IsTrueCondition(const SCondition& Cond_) const
 {
    std::vector<SPredicate> vPredLeft, vPredRight;
    for (auto predTemp : Cond_.left)
@@ -666,95 +673,14 @@ bool CGeneticAlgorithm::IsTrueCondition(const SCondition& Cond_) const
    {
       // Заполняем мапину для предикат имеющих -1 в аргументе.
       std::map<SPredicateTemplate, std::vector<bool>> mapPredAnyArg;
-      bool bHasAnyPred = false;
-      Cond_.ForEachPredicate([&mapPredAnyArg, &bHasAnyPred, countVariables, this](const SPredicateTemplate& predTempl)
-         {
-            if (bHasAnyPred)
-               return;
-
-            size_t countAnyArg = 0; // Кол-во аргументов равных -1
-            std::map<SPredicateTemplate, std::vector<bool>>::iterator it;
-            for (int arg : predTempl.arguments)
-               if (arg == -1)
-               {
-                  it = mapPredAnyArg.emplace(predTempl, std::vector<bool>(NumberOfPlacements(countVariables, predTempl.arguments.size()), false)).first;
-                  ++countAnyArg;
-               }
-
-            if (countAnyArg == 0)
-               return;
-
-            if (countAnyArg == predTempl.arguments.size())
-            {
-               bHasAnyPred = true;
-               return;
-            }
-
-            std::vector<int> newVArg(predTempl.arguments.size());
-            std::map<int, int> mapReplace;
-            mapReplace.emplace(-1, -1);
-            int maxArg = -1;
-            for (size_t iArg = 0; iArg < predTempl.arguments.size(); ++iArg)
-            {
-               auto itReplace = mapReplace.find(predTempl.arguments[iArg]);
-               if (itReplace == mapReplace.end())
-                  itReplace = mapReplace.emplace(predTempl.arguments[iArg], ++maxArg).first;
-
-               newVArg[iArg] = itReplace->second;
-            }
-
-            SPredicate predicate = m_storage.GetPredicate(predTempl.idxPredicate);
-            CCounterWithoutRepeat<size_t> counterArg(0, countVariables, predTempl.arguments.size() - countAnyArg);
-            const size_t countIteration = counterArg.countIterations();
-            const size_t countAnyIter = CCounterWithoutRepeat<size_t>(0, countVariables, countAnyArg).countIterations();
-            for (size_t iteration = 0; iteration < countIteration; ++iteration, ++counterArg)
-            {
-               const std::vector<size_t>& vSubstitution = counterArg.get();
-
-               // Формируем вектор аргументов которые зафиксированны, и вектор только зафиксированных.
-               std::vector<int> arg(newVArg.size(), -1);
-               std::vector<size_t> fixedArg;
-               for (size_t iArg = 0; iArg < newVArg.size(); ++iArg)
-               {
-                  if (newVArg[iArg] != -1)
-                  {
-                     arg[iArg] = static_cast<int>(vSubstitution.at(static_cast<size_t>(newVArg[iArg])));
-                     fixedArg.push_back(vSubstitution.at(static_cast<size_t>(newVArg[iArg])));
-                  }
-               }
-
-               CCounterWithoutRepeat<size_t> counterAnyArg(0, countVariables, countAnyArg);
-               for (size_t iterAny = 0; iterAny < countAnyIter; ++iterAny, ++counterAnyArg)
-               {
-                  // Подставляем вместо -1 аргументы полученные для текущей итерации.
-                  std::vector<size_t> vSubstAny = counterAnyArg.get();
-                  size_t currentIdxSubst = 0;
-                  std::vector<size_t> argInstance(arg.size());
-                  for (size_t iArg = 0; iArg < arg.size(); ++iArg)
-                  {
-                     if (arg[iArg] == -1)
-                        argInstance[iArg] = vSubstAny[currentIdxSubst++];
-                     else
-                        argInstance[iArg] = arg[iArg];
-                  }
-
-                  size_t indexArg = predicate.GetIndex(countVariables, argInstance);
-                  if (predicate.table.at(indexArg))
-                  {
-                     // Нашли хотя бы один экземпляр.
-                     it->second[GetIndex(countVariables, fixedArg)] = true;
-                     break;
-                  }
-               }
-            }
-         });
-
-      if (bHasAnyPred)
-         return false;
+      if (getPredicatesWithAnyArgument(Cond_, mapPredAnyArg))
+         return { false, false };
 
 
       CCounterWithoutRepeat<size_t> argCounter(0, countVariables, Cond_.maxArgument + 1);
       const size_t countIteration = argCounter.countIterations();
+      bool isFalseForOne = false;
+      // Перебераем все возможные аргументы.
       for (size_t iteration = 0; iteration < countIteration; ++iteration, ++argCounter)
       {
          // Если в левой части 0, то импликация всегда истинна. (0->X = 1)
@@ -851,7 +777,7 @@ bool CGeneticAlgorithm::IsTrueCondition(const SCondition& Cond_) const
          }
 
          if (!isTrueForOne)
-            return false;
+            return { false, true };
       }
    }
    catch (std::exception error)
@@ -859,7 +785,137 @@ bool CGeneticAlgorithm::IsTrueCondition(const SCondition& Cond_) const
       throw CException(error.what(), "Ошибка проверки условия", "CGeneticAlgorithm::IsTrueCondition");
    }
 
-   return true;
+   return { true , true };
+}
+
+bool CGeneticAlgorithm::getPredicatesWithAnyArgument(const SCondition& Cond_, std::map<SPredicateTemplate, std::vector<bool>>& mapPredicates_) const
+{
+   const size_t countVariables = m_storage.CountVariables();
+
+   bool bHasAnyPred = false; // есть предикат у которого все аргументы -1.
+
+   Cond_.ForEachPredicate([&mapPredicates_, &bHasAnyPred, countVariables, this](const SPredicateTemplate& predTempl)
+      {
+         if (bHasAnyPred)
+            return;
+
+         size_t countAnyArg = 0; // Кол-во аргументов равных -1
+         for (int arg : predTempl.arguments)
+            if (arg == -1)
+               ++countAnyArg;
+
+         if (countAnyArg == 0)
+            return;
+
+         if (countAnyArg == predTempl.arguments.size())
+         {
+            bHasAnyPred = true;
+            return;
+         }
+
+         // Добавляем предикат в мапину и сохраняем итератор на него.
+         std::map<SPredicateTemplate, std::vector<bool>>::iterator it;
+         it = mapPredicates_.emplace(predTempl, std::vector<bool>(pow(countVariables, predTempl.arguments.size() - countAnyArg), false)).first;
+
+         // Создаем новый вектор аргументов, который будет нормализирован,
+         // т.е. будет содержать шаблоны аргументов по порядку, без пропусков.
+         std::vector<int> vTemplArgNormalize(predTempl.arguments.size());
+         {
+            std::map<int, int> mapReplace;
+            mapReplace.emplace(-1, -1);
+            int maxArg = -1;
+            for (size_t iArg = 0; iArg < vTemplArgNormalize.size(); ++iArg)
+            {
+               auto itReplace = mapReplace.find(predTempl.arguments[iArg]);
+               if (itReplace == mapReplace.end())
+                  itReplace = mapReplace.emplace(predTempl.arguments[iArg], ++maxArg).first;
+
+               vTemplArgNormalize[iArg] = itReplace->second;
+            }
+         }
+
+         SPredicate predicate = m_storage.GetPredicate(predTempl.idxPredicate);
+         CCounterWithoutRepeat<size_t> counterArg(0, countVariables, predTempl.arguments.size() - countAnyArg); // счетчик для перебора аргументов не равных -1
+         const size_t countIteration = counterArg.countIterations();
+         const size_t countAnyIter = CCounterWithoutRepeat<size_t>(0, countVariables, countAnyArg).countIterations();
+         for (size_t iteration = 0; iteration < countIteration; ++iteration, ++counterArg)
+         {
+            const std::vector<size_t>& vSubstitution = counterArg.get(); // вектор подстановки (из шаблона - реальный аргумент)
+
+            std::vector<int> arg(vTemplArgNormalize.size(), -1); // вектор с подставленными аргументами (реальными) и -1.
+            std::vector<size_t> fixedArg; // вектор хранящий только зафиксированные аргументы (те которые не равны -1).
+            for (size_t iArg = 0; iArg < vTemplArgNormalize.size(); ++iArg)
+            {
+               if (vTemplArgNormalize[iArg] != -1)
+               {
+                  const size_t realArg = vSubstitution[static_cast<size_t>(vTemplArgNormalize[iArg])];
+                  arg[iArg] = static_cast<int>(realArg);
+                  fixedArg.push_back(realArg);
+               }
+            }
+
+            CCounterWithoutRepeat<size_t> counterAnyArg(0, countVariables, countAnyArg); // счетчик для перебора аргуметов на место -1
+            for (size_t iterAny = 0; iterAny < countAnyIter; ++iterAny, ++counterAnyArg)
+            {
+               // Подставляем вместо -1 аргументы полученные для текущей итерации.
+               std::vector<size_t> vSubstAny = counterAnyArg.get();
+               size_t currentIdxSubst = 0;
+               std::vector<size_t> argInstance(arg.size()); // вектор полностью подставленных аргументов (реальных)
+               for (size_t iArg = 0; iArg < arg.size(); ++iArg)
+               {
+                  if (arg[iArg] == -1)
+                     argInstance[iArg] = vSubstAny[currentIdxSubst++];
+                  else
+                     argInstance[iArg] = arg[iArg];
+               }
+
+               size_t indexArg = predicate.GetIndex(countVariables, argInstance);
+               if (predicate.table[indexArg])
+               {
+                  // Нашли хотя бы один экземпляр аргументов, для которых значение истинно.
+                  it->second[GetIndex(countVariables, fixedArg)] = true;
+                  break;
+               }
+            }
+         }
+      });
+
+   return bHasAnyPred;
+}
+
+size_t CGeneticAlgorithm::SelectRandParent(size_t countIndividuals_) const
+{
+   if (countIndividuals_ < 2)
+      throw CException("Слишком мало индивидуумов!", "Ошибка выбора родителя", "CGeneticAlgorithm::SelectRandParent");
+
+   m_rand.SetBoundaries(0, countIndividuals_ - 1);
+
+   qint64 first = m_rand.Generate();
+   qint64 second = m_rand.Generate();
+   while (first == second)
+      second = m_rand.Generate();
+
+   return m_generation[first].second < m_generation[second].second ? second : first;
+}
+
+std::pair<size_t, size_t> CGeneticAlgorithm::GetPairParents(size_t countIndividuals_) const
+{
+   size_t index1 = SelectRandParent(countIndividuals_);
+   size_t index2 = SelectRandParent(countIndividuals_);
+
+   while (index1 == index2)
+      index2 = SelectRandParent(countIndividuals_);
+
+   return std::make_pair(index1, index2);
+}
+
+void CGeneticAlgorithm::SortGenerationDescendingOrder(TGeneration& generation_) const
+{
+   std::sort(generation_.begin(), generation_.end(),
+      [](const TIntLimAndFitness& a, const TIntLimAndFitness& b)
+      {
+         return a.second > b.second;
+      });
 }
 
 double CGeneticAlgorithm::FitnessFunction(const TIntegrityLimitation& conds_) const
@@ -883,7 +939,8 @@ double CGeneticAlgorithm::FitnessFunction(const TIntegrityLimitation& conds_) co
       count += quantitativeAssessment(m_original.at(iCond).right, conds_.at(iCond).right);
 
       const double dMultiplierArgs = getMultiplierArguments(count.diffArg, count.totalArg);
-      double fitnesCond = IsTrueCondition(conds_.at(iCond)) ? 0. : -1.;
+      std::pair<bool, bool> correct = IsTrueCondition(conds_.at(iCond));
+      double fitnesCond = correct.first && correct.second ? 0. : -1.;
       fitnesCond += dMultiplierArgs * count.matchPred;
       fitnesCond += m_costAddingPredicate * count.addedPred;
       fitnesCond /= count.matchPred + count.addedPred + count.deletedPred;
@@ -993,41 +1050,6 @@ double CGeneticAlgorithm::getMultiplierArguments(size_t differences_, size_t tot
       return 0;
 
    return 1. - (differences_ * (1. - m_minCostForArgDif) / total_);
-}
-
-size_t CGeneticAlgorithm::SelectRandParent(size_t countIndividuals_) const
-{
-   if (countIndividuals_ < 2)
-      throw CException("Слишком мало индивидуумов!", "Ошибка выбора родителя", "CGeneticAlgorithm::SelectRandParent");
-
-   m_rand.SetBoundaries(0, countIndividuals_ - 1);
-
-   qint64 first = m_rand.Generate();
-   qint64 second = m_rand.Generate();
-   while (first == second)
-      second = m_rand.Generate();
-
-   return m_generation[first].second < m_generation[second].second ? second : first;
-}
-
-std::pair<size_t, size_t> CGeneticAlgorithm::GetPairParents(size_t countIndividuals_) const
-{
-   size_t index1 = SelectRandParent(countIndividuals_);
-   size_t index2 = SelectRandParent(countIndividuals_);
-
-   while (index1 == index2)
-      index2 = SelectRandParent(countIndividuals_);
-
-   return std::make_pair(index1, index2);
-}
-
-void CGeneticAlgorithm::SortGenerationDescendingOrder(TGeneration& generation_) const
-{
-   std::sort(generation_.begin(), generation_.end(),
-      [](const TIntLimAndFitness& a, const TIntLimAndFitness& b)
-      {
-         return a.second > b.second;
-      });
 }
 
 QString CGeneticAlgorithm::highlightBlock(const QString& str_, qsizetype& index_)

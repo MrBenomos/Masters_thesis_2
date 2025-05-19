@@ -10,6 +10,8 @@
 MainWidget::MainWidget(QWidget *parent) :
     QMainWindow(parent), ui(new Ui::MainWidgetClass())
 {
+   qRegisterMetaType<CException>("CException");
+
     ui->setupUi(this);
 
     ui->progressBar->setVisible(false);

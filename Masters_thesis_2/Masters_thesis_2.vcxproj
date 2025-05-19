@@ -118,6 +118,7 @@
     <QtMoc Include="viewer.h" />
     <QtMoc Include="genetic_algorithm.h" />
     <ClInclude Include="counter.h" />
+    <ClInclude Include="custom_math.h" />
     <ClInclude Include="exception.h" />
     <ClInclude Include="global.h" />
     <ClInclude Include="parser_template_predicates.h" />

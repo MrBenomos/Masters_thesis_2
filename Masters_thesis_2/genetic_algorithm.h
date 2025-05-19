@@ -168,7 +168,17 @@ private:
    bool IsCorrectCondition(const SCondition& cond_) const;
 
    // Возвращает истинность условия.
-   bool IsTrueCondition(const SCondition& cond_) const;
+   // Первый возвращаемый параметр - истинность условия.
+   // Второй возвращаемый параметр - полезность условия: false - не полезное, когда условие всегда истино, true - полезное.
+   std::pair<bool, bool> IsTrueCondition(const SCondition& cond_) const;
+
+   // Возвращает true - если в условии есть предикат в котором все аргументы равны -1 (т.е. любые '~'),
+   // при этом мапка будет не полной, так как поиск прекращается, так как это условие уже бессмыслено.
+   // mapPredicates_ мапка со всеми предикатами у которых хотябы один аргумент равен -1.
+   // Мапка содержит предикат и его таблицу истинности без учета аргументов которые равны -1.
+   // Например если предикат содержит 2 аргумента и один из них это ~,
+   // то таблица будет хранить условия истинности для набора из 1 аргумента.
+   bool getPredicatesWithAnyArgument(const SCondition& Cond_, std::map<SPredicateTemplate, std::vector<bool>>& mapPredicates_) const;
 
    // Возвращает индекс родителя из поколения. Турнирная функция выбора.
    size_t SelectRandParent(size_t countIndividuals_) const;

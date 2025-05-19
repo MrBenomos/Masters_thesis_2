@@ -1,7 +1,6 @@
-#include <cmath>
-
 #include <QTextStream>
 
+#include "custom_math.h"
 #include "predicate.h"
 #include "exception.h"
 #include "counter.h"
@@ -15,26 +14,6 @@ static const QString INVALID_TABLE("Попытка обращения к таб�
 static const CException EXC_CANT_ADD_VARIABLE("Невозможно изменить набор переменных, после добавления хотя бы одного предиката.", "Ошибка изменения переменых", "CPredicatesStorage::SetVariables");
 
 constexpr const char RESERVED_CHARACTERS[] = "(),;";
-
-static size_t pow(size_t base_, size_t exp_)
-{
-   size_t result = 1;
-   while (exp_ > 0)
-   {
-      if (exp_ % 2 == 1)
-         result *= base_;
-
-      base_ *= base_;
-      exp_ /= 2;
-   }
-
-   return result;
-}
-
-static size_t intLog(size_t base_, size_t x_)
-{
-   return static_cast<size_t>(log(x_) / log(base_) + 0.01);
-}
 
 size_t GetIndex(size_t countVariables_, const std::vector<size_t>& args_)
 {
