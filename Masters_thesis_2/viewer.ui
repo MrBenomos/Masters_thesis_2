@@ -117,9 +117,19 @@
           </widget>
          </item>
          <item>
-          <widget class="QCheckBox" name="chTrueCondition">
+          <widget class="QCheckBox" name="cbTrueCondition">
            <property name="text">
             <string>Истинность условия</string>
+           </property>
+           <property name="checked">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QCheckBox" name="cbUsefulnessCondition">
+           <property name="text">
+            <string>Полезность условия</string>
            </property>
            <property name="checked">
             <bool>true</bool>

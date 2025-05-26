@@ -1,0 +1,79 @@
+E0, E1, E2, E3, E4, E5, E6, E7, E8, E9, Smith.J.A. Johnson.E.M. Williams.R.K. Brown.L.S. Davis.P.T. Miller.A.R. Wilson.D.C. Taylor.S.E. Clark.M.J.  Evans.K.L., 05/12/1990, 11/23/1995, 08/03/1978,02/17/1987, 09/30/1982, 07/14/1994, 04/05/1973, 12/08/1996, 10/22/1985, 03/19/1992, Software_Engineer, Marketing_Specialist, Project_Manager, HR_Manager, Senior_Developer, Financial_Analyst, Operations_Director, UX_Designer, Sales_Manager, Data_Scientist, 95000, 65000, 110000, 85000, 120000, 75000, 140000, 80000, 90000, 105000, j.smith@company.com, e.johnson@company.com, r.williams@company.com, l.brown@company.com, p.davis@company.com, a.miller@company.com, d.wilson@company.com, s.taylor@company.com, m.clark@company.com, k.evans@company.com, +15551234567, +15552345678, +15553456789, +15554567890, +15555678901, +15556789012, +15557890123, +15558901234, +15559012345, +15550123456, D1, D2, D3, Operations, Marketing, IT
+
+$
+
+Staff(3)
+E1 Smith.J.A.    05/12/1990
+E2 Johnson.E.M.  11/23/1995
+E3 Williams.R.K. 08/03/1978
+E4 Brown.L.S.    02/17/1987
+E5 Davis.P.T.    09/30/1982
+E6 Miller.A.R.   07/14/1994
+E7 Wilson.D.C.   04/05/1973
+E8 Taylor.S.E.   12/08/1996
+E9 Clark.M.J.    10/22/1985
+E0 Evans.K.L.    03/19/1992
+
+Post(2)
+E1 Software_Engineer
+E2 Marketing_Specialist
+E4 HR_Manager
+E5 Senior_Developer
+E6 Financial_Analyst
+E7 Operations_Director
+E8 UX_Designer
+E9 Sales_Manager
+
+Salary(2)
+E1 95000
+E2 65000
+E3 110000
+E4 85000
+E5 120000
+E6 75000
+E7 140000
+E8 80000
+E9 90000
+E0 105000
+
+
+Email(2)
+E1 j.smith@company.com
+E2 e.johnson@company.com
+E3 r.williams@company.com
+E4 l.brown@company.com
+E5 p.davis@company.com
+E6 a.miller@company.com
+E7 d.wilson@company.com
+E9 m.clark@company.com
+E0 k.evans@company.com
+
+Phone(2)
+E1 +15551234567
+E3 +15553456789
+E4 +15554567890
+E5 +15555678901
+E7 +15557890123
+E8 +15558901234
+E9 +15559012345
+E0 +15550123456
+
+Departments(3)
+D1 IT         E5
+D2 Marketing  E2
+D3 Operations E7
+
+EmployeeDepartments(2)
+E1 D1
+E3 D1
+E8 D2
+E9 D2
+E4 D3
+E6 D3
+E0 D1
+E0 D3
+E3 D2
+
+$
+
+Staff(a, ~, ~) -> Phone(a, ~);

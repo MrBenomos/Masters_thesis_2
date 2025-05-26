@@ -72,11 +72,11 @@ public:
    QString StringPredicates() const;
 
    // Возвращает строку с ограничением целостности.
-   QString StringIntegrityLimitation(bool bTrueCondition_ = false) const;
+   QString StringIntegrityLimitation(bool bTrueCondition_ = false, bool bUsefulnessCondition_ = false) const;
 
    // Возвращает строку с поклоениями. Выводит первые count_ особей.
    // Чтобы вывести все поколения оставьте значение по умолчанию.
-   QString StringGeneration(bool bFitness_ = true, size_t count_ = SIZE_MAX) const;
+   QString StringGeneration(bool bFitness_ = true, bool bTrueCondition_ = false, bool bUsefulnessCondition_ = false, size_t count_ = SIZE_MAX) const;
 
    // Возвращает настраиваемую строку.
    // fileName_ - имя файла.
@@ -86,8 +86,9 @@ public:
    // bGenerations_ - Записать поколения.
    // bFitness - Выводить значение фитнес функции.
    // bTrueCondition_ - Истинность каждого условия.
+   // bUsefulnessCondition_ - Полезность условия.
    // countIndividuals_ - Количество первых особей.
-   QString StringCustom(bool bVariables_ = true, bool bPredicates_ = true, bool bIntegrityLimitation_ = true, bool bGeneration_ = true, bool bFitness_ = true, bool bTrueCondition_ = false, size_t countIndividuals_ = SIZE_MAX) const;
+   QString StringCustom(bool bVariables_ = true, bool bPredicates_ = true, bool bIntegrityLimitation_ = true, bool bGeneration_ = true, bool bFitness_ = true, bool bTrueCondition_ = false, bool bUsefulnessCondition_ = false, size_t countIndividuals_ = SIZE_MAX) const;
 
    // Запись в файл.
    // fileName_ - имя файла.
@@ -97,9 +98,10 @@ public:
    // bGenerations_ - Записать поколения.
    // bFitness - Выводить значение фитнес функции.
    // bTrueCondition_ - Истинность каждого условия.
+   // bUsefulnessCondition_ - Полезность условия.
    // countIndividuals_ - Количество первых особей.
    // !> emit signal error.
-   void WriteInFile(const QString& fileName_, bool bVariables_ = true, bool bPredicates_ = true, bool bIntegrityLimitation_ = true, bool bGeneration_ = true, bool bFitness_ = true, bool bTrueCondition_ = false, size_t countIndividuals_ = SIZE_MAX) const;
+   void WriteInFile(const QString& fileName_, bool bVariables_ = true, bool bPredicates_ = true, bool bIntegrityLimitation_ = true, bool bGeneration_ = true, bool bFitness_ = true, bool bTrueCondition_ = false, bool bUsefulnessCondition_ = false, size_t countIndividuals_ = SIZE_MAX) const;
 
    // Запустить алгоритм с заданием параметров.
    // countIndividuals_ - количество особей
@@ -109,7 +111,8 @@ public:
    // percentMutationPredicates_ - процент мутаций предикатов (полностью, с аргументами) в одном условии
    // countSkipMutationPred_ - количество последних итераций которых не затронет мутация предикатов
    // percentIndividualsUndergoingMutation_ - процент особей которые будут подвергнуты мутациям (в каждом поколении)
-   void Start(int countIndividuals_, int countIterations_, double percentMutationArguments_, int countSkipMutationArg_, double percentMutationPredicates_, int countSkipMutationPred_, double percentIndividualsUndergoingMutation_ = 100);
+   // bContinue_ - продождить расчет (не создавать первое поколение рандомно, а использовать уже имеющееся).
+   void Start(int countIndividuals_, int countIterations_, double percentMutationArguments_, int countSkipMutationArg_, double percentMutationPredicates_, int countSkipMutationPred_, double percentIndividualsUndergoingMutation_ = 100, bool bContinue_ = false);
 
    void Clear();
 
@@ -130,7 +133,7 @@ public:
 signals:
    // ================================== С и г н а л ы ==================================
    void signalProgressUpdate(int value_) const;
-   void signalEnd() const;
+   void signalEnd(bool noError_) const;
    void signalError(const CException& error_) const;
 
 
@@ -144,7 +147,10 @@ private:
    QString StringCondition(const SCondition& condition_) const;
 
    // Записывает ограничение целостности в строку.
-   QString StringIntegrityLimitation(const TIntegrityLimitation& integrityLimitation_, bool bInsertNewLine_ = false, bool bTrueCondition_ = false) const;
+   QString StringIntegrityLimitation(const TIntegrityLimitation& integrityLimitation_, bool bInsertNewLine_ = false, bool bTrueCondition_ = false, bool bUsefulnessCondition_ = false) const;
+
+   // Заполняет вектор аргументов (шаблонных) случайныими значениями. countArgs_ - размер вектора, maxArg - число самого большого присутствующего аргумента.
+   void FillRandomArguments(std::vector<int>& vArguments_, int& maxArg_) const;
 
    // Сгенерировать первое поколение рандомно.
    void CreateFirstGenerationRandom(size_t count_);
@@ -169,7 +175,8 @@ private:
 
    // Возвращает истинность условия.
    // Первый возвращаемый параметр - истинность условия.
-   // Второй возвращаемый параметр - полезность условия: false - не полезное, когда условие всегда истино, true - полезное.
+   // Второй возвращаемый параметр - полезность условия: false - не полезное,
+   // когда в условии левая часть всегда ложна или правая часть всегда истинна, true - полезное.
    std::pair<bool, bool> IsTrueCondition(const SCondition& cond_) const;
 
    // Возвращает true - если в условии есть предикат в котором все аргументы равны -1 (т.е. любые '~'),
@@ -181,11 +188,11 @@ private:
    bool getPredicatesWithAnyArgument(const SCondition& Cond_, std::map<SPredicateTemplate, std::vector<bool>>& mapPredicates_) const;
 
    // Возвращает индекс родителя из поколения. Турнирная функция выбора.
-   size_t SelectRandParent(size_t countIndividuals_) const;
+   size_t SelectRandParent() const;
 
    // Возвращает индексы двух разных родителей из поколения.
    // Использует турнирный отбор.
-   std::pair<size_t, size_t> GetPairParents(size_t countIndividuals_) const;
+   std::pair<size_t, size_t> GetPairParents() const;
 
    // Сортирует поколение в порядке убывания фитнес функции.
    void SortGenerationDescendingOrder(TGeneration& generation_) const;

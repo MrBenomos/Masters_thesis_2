@@ -15,10 +15,12 @@ MainWidget::MainWidget(QWidget *parent) :
     ui->setupUi(this);
 
     ui->progressBar->setVisible(false);
+    ui->pbContinue->setVisible(false);
 
     connect(ui->pbLoad, &QPushButton::clicked, this, &MainWidget::onLoad);
     connect(ui->pbUpload, &QPushButton::clicked, this, &MainWidget::onUpload);
     connect(ui->pbStart, &QPushButton::clicked, this, &MainWidget::onStart);
+    connect(ui->pbContinue, &QPushButton::clicked, this, &MainWidget::onContinue);
     connect(ui->pbShowData, &QPushButton::clicked, this, &MainWidget::onShowData);
     connect(ui->cbSkipMutationsPredicates, &QCheckBox::checkStateChanged, this, &MainWidget::onCheckStateChanged);
     connect(ui->cbSkipMutationsArgumetns, &QCheckBox::checkStateChanged, this, &MainWidget::onCheckStateChanged);
@@ -42,6 +44,8 @@ void MainWidget::onLoad()
       QString strError;
       m_algorithm.FillDataInFile(path);
 
+      ui->pbContinue->setVisible(false);
+
       if (m_dlgViewer)
          m_dlgViewer->UpdateText();
    }
@@ -60,35 +64,12 @@ void MainWidget::onUpload()
 
 void MainWidget::onStart()
 {
-   ui->pbStart->setEnabled(false);
-   ui->progressBar->setVisible(true);
-   ui->progressBar->setValue(0);
+   runAlgorithm(false);
+}
 
-   m_algorithm.SetCostAddingPredicate(ui->sbCostAdding->value());
-   m_algorithm.SetLimitOfArgumentsChange(ui->sbCostArguments->value());
-
-   QThread* thread = new QThread();
-   m_algorithm.moveToThread(thread);
-
-   connect(thread, &QThread::started, [this]()
-      {
-         bool bMutationArg = ui->gbMutationArguments->isChecked();
-         bool bSkipMutationArg = ui->cbSkipMutationsArgumetns->isChecked();
-         bool bMutationPred = ui->gbMutationPredicates->isChecked();
-         bool bSkipMutationPred = ui->cbSkipMutationsPredicates->isChecked();
-         m_algorithm.Start(ui->sbIndivids->value(),
-            ui->sbIterations->value(),
-            bMutationArg ? ui->sbMutationsArguments->value() : 0,
-            bSkipMutationArg ? ui->sbSkipMutationsArguments->value() : 0,
-            bMutationPred ? ui->sbMutationsPredicates->value() : 0,
-            bSkipMutationPred ? ui->sbSkipMutationsPredicates->value() : 0,
-            ui->sbMutationsIndivids->value());
-      }
-   );
-   connect(thread, &QThread::finished, thread, &QThread::deleteLater);
-   connect(&m_algorithm, &CGeneticAlgorithm::signalEnd, thread, &QThread::quit);
-
-   thread->start();
+void MainWidget::onContinue()
+{
+   runAlgorithm(true);
 }
 
 void MainWidget::onShowData()
@@ -136,10 +117,47 @@ void MainWidget::onShowError(const CException& messege_)
    QMessageBox::critical(this, messege_.title(), messege_.what());
 }
 
-void MainWidget::onEndingCalc()
+void MainWidget::onEndingCalc(bool bSuccess_)
 {
+   if (bSuccess_)
+      ui->pbContinue->setVisible(true);
+
    ui->pbStart->setEnabled(true);
 
    if (m_dlgViewer)
       m_dlgViewer->UpdateText();
+}
+
+void MainWidget::runAlgorithm(bool bContinue_)
+{
+   ui->pbStart->setEnabled(false);
+   ui->progressBar->setVisible(true);
+   ui->progressBar->setValue(0);
+
+   m_algorithm.SetCostAddingPredicate(ui->sbCostAdding->value());
+   m_algorithm.SetLimitOfArgumentsChange(ui->sbCostArguments->value());
+
+   QThread* thread = new QThread();
+   m_algorithm.moveToThread(thread);
+
+   connect(thread, &QThread::started, [this, bContinue_]()
+      {
+         bool bMutationArg = ui->gbMutationArguments->isChecked();
+         bool bSkipMutationArg = ui->cbSkipMutationsArgumetns->isChecked();
+         bool bMutationPred = ui->gbMutationPredicates->isChecked();
+         bool bSkipMutationPred = ui->cbSkipMutationsPredicates->isChecked();
+         m_algorithm.Start(ui->sbIndivids->value(),
+            ui->sbIterations->value(),
+            bMutationArg ? ui->sbMutationsArguments->value() : 0,
+            bSkipMutationArg ? ui->sbSkipMutationsArguments->value() : 0,
+            bMutationPred ? ui->sbMutationsPredicates->value() : 0,
+            bSkipMutationPred ? ui->sbSkipMutationsPredicates->value() : 0,
+            ui->sbMutationsIndivids->value(),
+            bContinue_);
+      }
+   );
+   connect(thread, &QThread::finished, thread, &QThread::deleteLater);
+   connect(&m_algorithm, &CGeneticAlgorithm::signalEnd, thread, &QThread::quit);
+
+   thread->start();
 }

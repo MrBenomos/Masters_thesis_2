@@ -1,13 +1,18 @@
 #pragma once
 #include <QRandomGenerator>
 
+// Класс генерирующий рандомные числа в диапазоне [start; end]
 class CRandom
 {
 public:
 
+   // strart_ - число от которого будет начинаться генерация (включительно)
+   // end_ - максимальное число при генерации (включительно)
    CRandom(quint64 start_ = 0, quint64 end_ = UINT64_MAX);
 
    quint64 Generate();
+   // strart_ - число от которого будет начинаться генерация (включительно)
+   // end_ - максимальное число при генерации (включительно)
    quint64 Generate(quint64 start_, quint64 end_);
    void SetBoundaries(quint64 start_, quint64 end_);
 

@@ -110,7 +110,12 @@ void CPredicatesStorage::SetVariables(const QString& str_)
       QString name = highlightName(str_, i);
 
       if (name.isEmpty())
-         throw CException(QString("Ожидалось имя переменной. Встречен символ \'%1\'").arg(str_.at(i)), "Ошибка изменения переменых", "CPredicatesStorage::SetVariables");
+      {
+         if (i < str_.size())
+            throw CException(QString("Ожидалось имя переменной. Встречен символ \'%1\'").arg(str_.at(i)), "Ошибка добавления переменых", "CPredicatesStorage::SetVariables");
+         else
+            break;
+      }
 
       setName.emplace(name);
       skipSpace(str_, i, ',');
