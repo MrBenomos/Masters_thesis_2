@@ -123,6 +123,7 @@ void MainWidget::onEndingCalc(bool bSuccess_)
       ui->pbContinue->setVisible(true);
 
    ui->pbStart->setEnabled(true);
+   ui->pbContinue->setEnabled(true);
 
    if (m_dlgViewer)
       m_dlgViewer->UpdateText();
@@ -131,6 +132,7 @@ void MainWidget::onEndingCalc(bool bSuccess_)
 void MainWidget::runAlgorithm(bool bContinue_)
 {
    ui->pbStart->setEnabled(false);
+   ui->pbContinue->setEnabled(false);
    ui->progressBar->setVisible(true);
    ui->progressBar->setValue(0);
 

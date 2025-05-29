@@ -217,7 +217,7 @@ QString CGeneticAlgorithm::StringCustom(bool bVariables_, bool bPredicates_, boo
             oldSize = str.size();
          }
 
-         out << StringGeneration(bFitness_, bTrueCondition_, countIndividuals_);
+         out << StringGeneration(bFitness_, bTrueCondition_, bUsefulnessCondition_, countIndividuals_);
       }
    }
    catch (const CException& error)

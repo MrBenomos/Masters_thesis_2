@@ -330,6 +330,36 @@ const std::vector<QString>& CPredicatesStorage::GetVariables() const
    return m_vVariables;
 }
 
+const std::vector<std::set<size_t>>& CPredicatesStorage::GetVariablesUsedInPredicate(size_t indexPredicate_) const
+{
+   if (indexPredicate_ >= m_vPredicates.size())
+      throw CException(INVALID_PREDICATE.arg(m_vPredicates.size()).arg(indexPredicate_), "Ошибка. Обратитесь к разработчику", "CPredicatesStorage::GetVariablesUsedInPredicate");
+
+   if (indexPredicate_ >= m_vHashesUsedVar.size())
+      m_vHashesUsedVar.resize(m_vPredicates.size());
+
+   std::vector<std::set<size_t>>& hashArg = m_vHashesUsedVar[indexPredicate_];
+
+   if (hashArg.empty())
+   {
+      const SPredicate& predicate = m_vPredicates[indexPredicate_];
+      const std::vector<bool>& tablePred = predicate.table;
+      hashArg.resize(CountArguments(indexPredicate_));
+
+      for (size_t idxInTableArg = 0; idxInTableArg < tablePred.size(); ++idxInTableArg)
+      {
+         if (tablePred[idxInTableArg])
+         {
+            std::vector<size_t> arguments = predicate.GetArgs(CountVariables(), idxInTableArg);
+            for (size_t idxArg = 0; idxArg < arguments.size(); ++idxArg)
+               hashArg[idxArg].insert(arguments[idxArg]);
+         }
+      }
+   }
+
+   return hashArg;
+}
+
 size_t CPredicatesStorage::GetIndexPredicate(const QString& namePredicate_) const
 {
    auto it = m_mapPredicates.find(namePredicate_);

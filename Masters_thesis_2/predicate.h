@@ -53,6 +53,8 @@ class CPredicatesStorage
    std::map<QString, size_t> m_mapPredicates;
    std::vector<SPredicate> m_vPredicates;
 
+   mutable std::vector<std::vector<std::set<size_t> > > m_vHashesUsedVar;
+
 public:
 
    // ================ Функции считывания / добавления данных ==================
@@ -101,6 +103,9 @@ public:
 
    // Возвращает вектор переменных.
    const std::vector<QString>& GetVariables() const;
+
+   // Возвращает вектор индексов использующихся переменных в таблице истинности в предикате.
+   const std::vector<std::set<size_t>>& GetVariablesUsedInPredicate(size_t indexPredicate_) const;
 
    // Получить индекс предиката по его названию.
    // Если такого предиката нет - вернет SIZE_MAX.
