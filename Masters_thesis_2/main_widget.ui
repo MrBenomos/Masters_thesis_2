@@ -114,7 +114,7 @@
          <item>
           <widget class="QCheckBox" name="cbBoost">
            <property name="toolTip">
-            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Ускоряет сходисость для нескольких условий.&lt;/p&gt;&lt;p&gt;Фитнес считается отдельно для каждого условия, а не ограничения, на этапе замены будут отбираться лучшие условия, а не ограничения в общем.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Ускоряет сходимость для нескольких условий.&lt;/p&gt;&lt;p&gt;Фитнес считается отдельно для каждого условия, а не ограничения, на этапе замены будут отбираться лучшие условия, а не ограничения в общем.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
            </property>
            <property name="text">
             <string>Ускорить сходимость</string>
