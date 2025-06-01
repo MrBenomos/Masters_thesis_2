@@ -57,6 +57,9 @@ class CGeneticAlgorithm : public QObject
    // Цена добавления предиката [0; 1].
    double m_costAddingPredicate = 0.5;
 
+   // Использовать ускоренное схождение условий.
+   bool m_boost = false;
+
 public:
    // ========================== О т к р ы т ы е   м е т о д ы ==========================
    CGeneticAlgorithm();
@@ -113,7 +116,7 @@ public:
    // countSkipMutationPred_ - количество последних итераций которых не затронет мутация предикатов
    // percentIndividualsUndergoingMutation_ - процент особей которые будут подвергнуты мутациям (в каждом поколении)
    // bContinue_ - продождить расчет (не создавать первое поколение рандомно, а использовать уже имеющееся).
-   void Start(int countIndividuals_, int countIterations_, double percentMutationArguments_, int countSkipMutationArg_, double percentMutationPredicates_, int countSkipMutationPred_, double percentIndividualsUndergoingMutation_ = 100, bool bContinue_ = false);
+   void Start(int countIndividuals_, int countIterations_, double percentMutationArguments_, int countSkipMutationArg_, double percentMutationPredicates_, int countSkipMutationPred_, double percentIndividualsUndergoingMutation_ = 100, bool bContinue_ = false, bool bBoost_ = false);
 
    void Clear();
 
@@ -238,7 +241,7 @@ private:
    // Все аргументы совпали - P = 1.
    // Все аргументы изменились - P = нижняя_граница (устанавливается пользователем).
    // dif аргуметнов поменялось из tot то P = нижняя_граница + ((tot-dif)/tot) * (1 - нижняя_граница).
-   double FitnessFunction(const TIntegrityLimitation& conds_) const;
+   double FitnessFunction(TIntegrityLimitation& conds_) const;
 
    // ----------------------- Вспомогательные функции для фитнеса -----------------------
 
@@ -260,6 +263,9 @@ private:
 
    // Возвращает true, если есть полностью одинаковые предикаты в обоих частях условия.
    bool areThereSamePredicatesDifferentParts(const SCondition& cond_) const;
+
+   // Возвращает количество шаблонных аргументов, которые используются в единственном экземплляре.
+   size_t countSingleArguments(const SCondition& cond_) const;
 
    // --------------------------- Функции работы со строками ----------------------------
 

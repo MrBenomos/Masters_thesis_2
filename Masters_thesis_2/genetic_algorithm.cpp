@@ -267,7 +267,7 @@ QString CGeneticAlgorithm::StringGeneration(bool bFitness_, bool bTrueCondition_
       for (size_t iGen = 0; iGen < count_; ++iGen)
       {
          const TIntLimAndFitness& conds = generation.at(iGen);
-         double valFitness = conds.second == -999. ? FitnessFunction(conds.first) : conds.second;
+         double valFitness = conds.second;
 
          str += QString("#%1 = %2%3").arg(iGen + 1).arg(valFitness).arg(NEW_LINE);
          str += StringIntegrityLimitation(conds.first, true, bTrueCondition_, bUsefulnessCondition_);
@@ -373,7 +373,7 @@ void CGeneticAlgorithm::WriteInFile(const QString& fileName_, bool bVariables_, 
    }
 }
 
-void CGeneticAlgorithm::Start(int countIndividuals_, int countIterations_, double percentMutationArguments_, int countSkipMutationArg_, double percentMutationPredicates_, int countSkipMutationPred_, double percentIndividualsUndergoingMutation_, bool bContinue_)
+void CGeneticAlgorithm::Start(int countIndividuals_, int countIterations_, double percentMutationArguments_, int countSkipMutationArg_, double percentMutationPredicates_, int countSkipMutationPred_, double percentIndividualsUndergoingMutation_, bool bContinue_, bool bBoost_)
 {
    if (countIndividuals_ < 2)
       ERRORSIGNAL("Количество особей должно быть не меньше 2, для создания потомства.", "Ошибка запуска", "")
@@ -395,6 +395,8 @@ void CGeneticAlgorithm::Start(int countIndividuals_, int countIterations_, doubl
 
    if (percentIndividualsUndergoingMutation_ < 0)
       percentIndividualsUndergoingMutation_ = 0;
+
+   m_boost = m_original.size() == 1 ? false : bBoost_; // Ускорение сходимости.
 
    // Сам запуск
    const double percentagePerIteration = 100. / countIterations_; // количество процентов за одну итерацию
@@ -442,10 +444,12 @@ void CGeneticAlgorithm::Start(int countIndividuals_, int countIterations_, doubl
          Selection(std::move(children), countIndividuals_);
 
          // Отправляем сигнал о проценте выполнения.
-         if (percentagePerIteration * iGeneration > percentageCompleted)
+         if (static_cast<int>(percentagePerIteration * (iGeneration + 1)) > percentageCompleted)
          {
-            percentageCompleted = percentagePerIteration * iGeneration;
-            Q_EMIT signalProgressUpdate(percentageCompleted);
+            percentageCompleted = percentagePerIteration * (iGeneration + 1);
+            // Для 100% отправим отдельный сигнал, после полного завершения.
+            if (percentageCompleted < 100)
+               Q_EMIT signalProgressUpdate(percentageCompleted);
          }
       }
 
@@ -699,9 +703,49 @@ void CGeneticAlgorithm::Selection(TGeneration&& individuals_, size_t countSurviv
    if (individuals_.size() < countSurvivors_)
       throw CException("Количество выживших не должно быть меньше самих особей", "Ошибка селекции", "CGeneticAlgorithm::Selection");
 
-   SortGenerationDescendingOrder(individuals_);
-   individuals_.resize(countSurvivors_);
-   m_generation = std::move(individuals_);   
+   if (m_boost)
+   {
+      const size_t countConditions = m_original.size();
+
+      using mapCond = std::multimap<double, SCondition*, std::greater<double>>;
+      std::vector<mapCond> vSortedCondition(countConditions);
+
+      for (TIntLimAndFitness& conds : individuals_)
+      {
+         for (size_t i = 0; i < countConditions; ++i)
+            //vSortedCondition[i][conds.first[i].fitnes].push_back(&conds.first[i]);
+            vSortedCondition[i].emplace(conds.first[i].fitnes, &conds.first[i]);
+      }
+
+      // Создаем новое поколение.
+      m_generation.resize(countSurvivors_);
+
+      std::vector<mapCond::const_iterator> vIt(countConditions);
+
+      for (size_t i = 0; i < countConditions; ++i)
+         vIt[i] = vSortedCondition[i].begin();
+
+      for (size_t i = 0; i < countSurvivors_; ++i)
+      {
+         TIntegrityLimitation newCond(countConditions);
+         double fitness = 0;
+
+         for (size_t j = 0; j < countConditions; ++j)
+         {
+            newCond[j] = *(*vIt[j]).second;
+            fitness += newCond[j].fitnes / countConditions;
+            ++vIt[j];
+         }
+
+         m_generation[i] = TIntLimAndFitness(std::move(newCond), fitness);
+      }
+   }
+   else
+   {
+      SortGenerationDescendingOrder(individuals_);
+      individuals_.resize(countSurvivors_);
+      m_generation = std::move(individuals_);
+   }
 }
 
 void CGeneticAlgorithm::MutationArguments(TIntegrityLimitation& individual_, double ratio_) const
@@ -1404,7 +1448,7 @@ void CGeneticAlgorithm::SortGenerationDescendingOrder(TGeneration& generation_) 
       });
 }
 
-double CGeneticAlgorithm::FitnessFunction(const TIntegrityLimitation& conds_) const
+double CGeneticAlgorithm::FitnessFunction(TIntegrityLimitation& conds_) const
 {
    if (m_original.size() != conds_.size())
       throw CException("Попытка фитнеса двух разных ограничений целостности. Обратитесь к разработчику.", "Непредвиденная ошибка.", "CGeneticAlgorithm::FitnessFunction");
@@ -1413,26 +1457,35 @@ double CGeneticAlgorithm::FitnessFunction(const TIntegrityLimitation& conds_) co
 
    for (size_t iCond = 0; iCond < m_original.size(); ++iCond)
    {
-      if (!IsCorrectCondition(conds_[iCond]))
+      SCondition& currentCond = conds_[iCond];
+      double& fitnesCurrCond = currentCond.fitnes;
+
+      if (!IsCorrectCondition(currentCond))
       {
-         fitnes += -1. / m_original.size();
+         fitnesCurrCond = -1. / m_original.size();
+         fitnes += fitnesCurrCond;
          continue;
       }
 
       SCounts count;
 
-      count += quantitativeAssessment(m_original[iCond].left, conds_[iCond].left);
-      count += quantitativeAssessment(m_original[iCond].right, conds_[iCond].right);
+      count += quantitativeAssessment(m_original[iCond].left, currentCond.left);
+      count += quantitativeAssessment(m_original[iCond].right, currentCond.right);
 
       const double dMultiplierArgs = getMultiplierArguments(count.diffArg, count.totalArg);
-      std::pair<bool, bool> correct = IsTrueCondition(conds_[iCond]);
+      std::pair<bool, bool> correct = IsTrueCondition(currentCond);
 
-      double fitnesCond = correct.first ? correct.second ? 0. : -0.75 : -1.;
-      fitnesCond += dMultiplierArgs * count.matchPred;
-      fitnesCond += m_costAddingPredicate * count.addedPred;
-      fitnesCond /= count.matchPred + count.addedPred + count.deletedPred;
+      fitnesCurrCond = correct.first ? correct.second ? 0. : -0.75 : -1.;
+      fitnesCurrCond += dMultiplierArgs * count.matchPred;
+      fitnesCurrCond += m_costAddingPredicate * count.addedPred;
+      fitnesCurrCond /= count.matchPred + count.addedPred + count.deletedPred;
+      // Штраф за использование одиночных аргументов.
+      fitnesCurrCond -= (0.01 / (currentCond.maxArgument + 1)) * countSingleArguments(currentCond);
 
-      fitnes += fitnesCond / m_original.size();
+      if (fitnesCurrCond < -1.)
+         fitnesCurrCond = -1.;
+
+      fitnes += fitnesCurrCond / m_original.size();
    }
 
    return fitnes;
@@ -1568,6 +1621,25 @@ bool CGeneticAlgorithm::areThereSamePredicatesDifferentParts(const SCondition& c
    }
 
    return false;
+}
+
+size_t CGeneticAlgorithm::countSingleArguments(const SCondition& cond_) const
+{
+   std::vector<size_t> counter(cond_.maxArgument + 1);
+   cond_.ForEachArgument([&counter](int arg)
+      {
+         if (arg >= 0)
+            ++counter[arg];
+      });
+
+   size_t count = 0;
+   for (size_t var : counter)
+   {
+      if (var == 1)
+         ++count;
+   }
+
+   return count;
 }
 
 QString CGeneticAlgorithm::highlightBlock(const QString& str_, qsizetype& index_)

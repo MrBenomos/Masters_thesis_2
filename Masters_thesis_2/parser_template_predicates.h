@@ -28,6 +28,7 @@ struct SCondition
    TPartCondition left; // левая часть (X -> ...)
    TPartCondition right; // правая часть (... -> X)
    int maxArgument = -1; // максимальный аргумент
+   double fitnes = -999.; // значение фитнеса
 
    inline size_t CountPredicates() const { return left.size() + right.size(); }
    void ForEachPredicate(std::function<void(SPredicateTemplate&)> callback_);

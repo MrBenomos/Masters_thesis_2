@@ -155,7 +155,8 @@ void MainWidget::runAlgorithm(bool bContinue_)
             bMutationPred ? ui->sbMutationsPredicates->value() : 0,
             bSkipMutationPred ? ui->sbSkipMutationsPredicates->value() : 0,
             ui->sbMutationsIndivids->value(),
-            bContinue_);
+            bContinue_,
+            ui->cbBoost->isChecked());
       }
    );
    connect(thread, &QThread::finished, thread, &QThread::deleteLater);
