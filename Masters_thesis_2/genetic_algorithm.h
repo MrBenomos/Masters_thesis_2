@@ -176,8 +176,9 @@ private:
 
    // Возвращает истинность условия.
    // Первый возвращаемый параметр - истинность условия.
-   // Второй возвращаемый параметр - полезность условия: false - не полезное,
-   // когда в условии левая часть всегда ложна или правая часть всегда истинна, true - полезное.
+   // Второй возвращаемый параметр - полезность условия: false - не полезное --
+   // когда в условии левая часть всегда ложна или содержатся одинаковые предикаты
+   // в обоих частях, true - полезное.
    std::pair<bool, bool> IsTrueCondition(const SCondition& cond_) const;
    std::pair<bool, bool> IsTrueConditionOld(const SCondition& cond_) const;
 
@@ -189,15 +190,30 @@ private:
    // то таблица будет хранить условия истинности для набора из 1 аргумента.
    bool getPredicatesWithAnyArgument(const SCondition& Cond_, std::map<SPredicateTemplate, std::vector<bool>>& mapPredicates_) const;
 
-   // Возвращает true, если завершено успешно.
+   // Возвращает true, если таблицы и аргументы заполнены успешно (зависит от параметра bSkipPredIfFalse_).
    // partCond_ - часть условия для которого формируется таблица истинности и вектор шаблонных предикат без -1.
    // truthTable_ - таблица истинности предикатов из части условия partCond_.
-   // vTemplArgPart_ - вектор шаблонных аргументов предикат для которых сформирована таблица (без -1).
-   // mapArgumentsForPred_ - набор переменных, при которых предикат с индексовм key может быть истинен.
-   // vSubstArguments_ - вектор переменных для шаблонов.
+   // vTemplArgsPart_ - вектор шаблонных аргументов предикат для которых сформирована таблица (без -1).
+   // mapArgsForPred_ - набор переменных, при которых предикат с индексовм key может быть истинен.
+   // vSubsRealArgsPart_ - вектор переменных для шаблонов.
+   // bSkipPredIfFalse_ - нужно ли пропускать предикат, если он всегда ложен. Если нет, тогда возвращает false,
+   // при хотябы одном ложном предикате, иначе вернет false только когда все предикаты ложны.
    bool getPredicateWithTableAndPredivateWithArg(const TPartCondition& partCond_, std::vector<CSparseTruthTable>& truthTable_,
-      std::vector<std::vector<size_t>>& vTemplArgPart_, const std::map<size_t, std::vector<std::set<size_t>>>& mapArgumentsForPred_,
-      const std::vector<std::set<size_t>>& vSubstArguments_) const;
+      std::vector<std::vector<size_t>>& vTemplArgsPart_, const std::map<size_t, std::vector<std::set<size_t>>>& mapArgsForPred_,
+      const std::vector<std::set<size_t>>& vSubsRealArgsPart_, bool bSkipPredIfFalse_) const;
+
+   // Заполняет таблицу истинности и вектор шаблонных аргументов для данной таблицы
+   // для шаблонного предиката удаляя от туда все шаблоны равные -1.
+   // Возвращает true, если таблица успешно заполнена, false - если предикат всегда ложен.
+   // predTemp_ - шаблонный предикат, для которого вычисляется таблица и аргументы.
+   // truthTable_ - заполненная таблица истинности.
+   // vTemplArgs_ - заполненный новый вектор шаблонных аргументов (исключая -1).
+   // vWildcardArgsForTemp_ - общий вектор подстановочных аргументов.
+   // vRealArgsForPred_ - значения аргументов, при которых предикат predTemp_ может быть истеннен.
+   // Используется в случае, если у предиката какой то шаблонный аргумент равен -1.
+   bool getTruthTableAndArgumentsForPredicate(const SPredicateTemplate& predTemp_, CSparseTruthTable& truthTable_,
+      std::vector<size_t>& vTemplArgs_, const std::vector<std::set<size_t>>& vWildcardArgsForTemp_,
+      const std::vector<std::set<size_t>>& vRealArgsForPred_) const;
 
    // Возвращает индекс родителя из поколения. Турнирная функция выбора.
    size_t SelectRandParent() const;
@@ -241,6 +257,9 @@ private:
 
    // Возвращает множитель аргументов.
    double getMultiplierArguments(size_t differences_, size_t total_) const;
+
+   // Возвращает true, если есть полностью одинаковые предикаты в обоих частях условия.
+   bool areThereSamePredicatesDifferentParts(const SCondition& cond_) const;
 
    // --------------------------- Функции работы со строками ----------------------------
 

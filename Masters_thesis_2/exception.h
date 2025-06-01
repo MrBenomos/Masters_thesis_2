@@ -18,6 +18,8 @@ public:
    operator std::string() const { return m_str; }
 };
 
+// Класс ошибки.
+// Аргументы: сообщение, [заголовок], [место возникновения].
 class CException : public std::exception
 {
    static constexpr const char* SEPARATOR = NEW_LINE;

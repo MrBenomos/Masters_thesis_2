@@ -464,6 +464,7 @@ void CPredicatesStorage::Clear()
    m_vVariables.clear();
    m_mapPredicates.clear();
    m_vPredicates.clear();
+   m_vHashesUsedVar.clear();
 }
 
 bool CPredicatesStorage::isIllegalSymbol(QChar symb_)

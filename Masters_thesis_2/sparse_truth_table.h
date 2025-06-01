@@ -27,6 +27,7 @@ public:
 
    void addValue(const std::vector<size_t> value_);
    void removeValue(const std::vector<size_t> value_);
+   void clear();
 
    bool hasValue(const std::vector<size_t> value_) const;
 };
