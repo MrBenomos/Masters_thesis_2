@@ -55,6 +55,9 @@
     <ClCompile Include="parser_template_predicates.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="sparse_truth_table.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="random.h">
@@ -76,6 +79,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="custom_math.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="sparse_truth_table.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

@@ -8,6 +8,7 @@
 #include "random.h"
 #include "predicate.h"
 #include "parser_template_predicates.h"
+#include "sparse_truth_table.h" // Нужно удалить отсюда, если переделю хранение таблиц в предекате. %%%%%
 
 class QTextStream;
 class CException;
@@ -178,6 +179,7 @@ private:
    // Второй возвращаемый параметр - полезность условия: false - не полезное,
    // когда в условии левая часть всегда ложна или правая часть всегда истинна, true - полезное.
    std::pair<bool, bool> IsTrueCondition(const SCondition& cond_) const;
+   std::pair<bool, bool> IsTrueConditionOld(const SCondition& cond_) const;
 
    // Возвращает true - если в условии есть предикат в котором все аргументы равны -1 (т.е. любые '~'),
    // при этом мапка будет не полной, так как поиск прекращается, так как это условие уже бессмыслено.
@@ -186,6 +188,16 @@ private:
    // Например если предикат содержит 2 аргумента и один из них это ~,
    // то таблица будет хранить условия истинности для набора из 1 аргумента.
    bool getPredicatesWithAnyArgument(const SCondition& Cond_, std::map<SPredicateTemplate, std::vector<bool>>& mapPredicates_) const;
+
+   // Возвращает true, если завершено успешно.
+   // partCond_ - часть условия для которого формируется таблица истинности и вектор шаблонных предикат без -1.
+   // truthTable_ - таблица истинности предикатов из части условия partCond_.
+   // vTemplArgPart_ - вектор шаблонных аргументов предикат для которых сформирована таблица (без -1).
+   // mapArgumentsForPred_ - набор переменных, при которых предикат с индексовм key может быть истинен.
+   // vSubstArguments_ - вектор переменных для шаблонов.
+   bool getPredicateWithTableAndPredivateWithArg(const TPartCondition& partCond_, std::vector<CSparseTruthTable>& truthTable_,
+      std::vector<std::vector<size_t>>& vTemplArgPart_, const std::map<size_t, std::vector<std::set<size_t>>>& mapArgumentsForPred_,
+      const std::vector<std::set<size_t>>& vSubstArguments_) const;
 
    // Возвращает индекс родителя из поколения. Турнирная функция выбора.
    size_t SelectRandParent() const;

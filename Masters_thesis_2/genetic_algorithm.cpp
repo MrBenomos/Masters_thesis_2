@@ -76,6 +76,126 @@ static void bringArgumentsBackToNormal(SCondition& condition_)
    condition_.maxArgument = countDiffArg - 1;
 }
 
+// Пересечение. first_ - результат пересечения first_ и second_.
+static void intersection(std::set<size_t>& first_, const std::set<size_t>& second_)
+{
+   std::erase_if(first_, [&second_](size_t val)
+      {
+         return !second_.contains(val);
+      });
+}
+
+// Объединение. first_ - результат объединения first_ и second_.
+static void unification(std::set<size_t>& first_, const std::set<size_t>& second_)
+{
+   first_.insert(second_.begin(), second_.end());
+}
+
+namespace
+{
+   class CSubstitution
+   {
+      const size_t countTempl;
+      const std::vector<std::set<size_t>> vSubstArg;
+      std::vector<std::set<size_t>::const_iterator> vIt;
+      std::vector<size_t> vResult;
+      std::set<size_t> setUsedArg;
+
+   public:
+
+      CSubstitution(const std::vector<std::set<size_t>>& substArg_) :
+         countTempl(substArg_.size()), vSubstArg(substArg_),
+         vIt(countTempl),vResult(countTempl)
+      {
+         for (size_t i = 0; i < countTempl; ++i)
+            vIt[i] = vSubstArg[i].begin();
+
+         for (size_t i = 0; i < countTempl; /*++i*/)
+         {
+            for (; vIt[i] != vSubstArg[i].end(); ++vIt[i])
+            {
+               if (!setUsedArg.contains(*vIt[i]))
+               {
+                  vResult[i] = *vIt[i];
+                  setUsedArg.insert(*vIt[i]);
+                  break;
+               }
+            }
+
+            if (vIt[i] == vSubstArg[i].end())
+            {
+               // Для позиции i с этими аргументами нет значения, нужно менять предыдущий.
+
+               if (i == 0) // Кончились значения для первого шаблона, все.
+               {
+                  vResult.clear();
+                  vIt.clear();
+                  return;
+               }
+
+               vIt[i] = vSubstArg[i].begin();
+               setUsedArg.erase(vResult[i - 1]);
+               ++vIt[i - 1];
+               --i;
+            }
+            else
+            {
+               ++i;
+            }
+         }
+      }
+
+      bool nextValues()
+      {
+         for (size_t iteration = 0; iteration < countTempl; /*++iteration*/)
+         {
+            const size_t i = countTempl - iteration - 1;
+
+            setUsedArg.erase(vResult[i]);
+            
+            if (vIt[i] != vSubstArg[i].end())
+               ++vIt[i];
+
+            for (; vIt[i] != vSubstArg[i].end(); ++vIt[i])
+            {
+               if (!setUsedArg.contains(*vIt[i]))
+               {
+                  vResult[i] = *vIt[i];
+                  setUsedArg.insert(*vIt[i]);
+                  break;
+               }
+            }
+
+            if (vIt[i] != vSubstArg[i].end())
+            { // Возвращаемся обратно.
+               if (iteration == 0)
+                  return true;
+
+               --iteration;
+            }
+            else
+            { // Идем дальше.
+               vIt[i] = vSubstArg[i].begin();
+               ++iteration;
+            }
+         }
+
+         return false;
+      }
+
+      const std::vector<size_t>& getValues() const
+      {
+         return vResult;
+      }
+
+      bool isValid() const
+      {
+         return !vResult.empty() && !vIt.empty() && !vSubstArg.empty() &&
+            !setUsedArg.empty() && countTempl;
+      }
+   };
+}
+
 // =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-= Методы класса =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 CGeneticAlgorithm::CGeneticAlgorithm()
@@ -667,8 +787,8 @@ size_t CGeneticAlgorithm::CountAllPredicates(const TIntegrityLimitation& individ
 
 bool CGeneticAlgorithm::IsCorrectCondition(const SCondition& Cond_) const
 {
-   bool bHasEmpty = Cond_.left.empty() || Cond_.right.empty();
-   if (bHasEmpty)
+   // Если одна из частей пустая.
+   if (Cond_.left.empty() || Cond_.right.empty())
       return false;
 
    bool bNoAnyPred = true; // Нет предикат со всеми аргуентами -1.
@@ -692,13 +812,217 @@ bool CGeneticAlgorithm::IsCorrectCondition(const SCondition& Cond_) const
    return bNoAnyPred;
 }
 
-std::pair<bool, bool> CGeneticAlgorithm::IsTrueCondition(const SCondition& Cond_) const
+std::pair<bool, bool> CGeneticAlgorithm::IsTrueCondition(const SCondition& cond_) const
+{
+   try
+   {
+      // Для предиката с индексом key хранит аргументы при которых он может иметь значение истинна.
+      std::map<size_t, std::vector<std::set<size_t> > > mapArgumentsForPred;
+
+      cond_.ForEachPredicate([&mapArgumentsForPred, this](const SPredicateTemplate& predTemp)
+         {
+            size_t idxPred = predTemp.idxPredicate;
+            auto [it, bNew] = mapArgumentsForPred.emplace(idxPred, std::vector<std::set<size_t> >());
+            if (bNew)
+               it->second = m_storage.GetVariablesUsedInPredicate(idxPred);
+         });
+
+
+      // Количество шаблонных аргументов.
+      const size_t countTemplate = static_cast<size_t>(cond_.maxArgument + 1);
+
+      // Заполняем вектор подстваных аргументов для левой части.
+      // Так как в левой части стоит конъюнкия, то выходит, если для одного
+      // предиката все значения с каким-то одним аргументом ложны, 
+      // то нет смысла проверять другие предикаты в левой части с этим значением,
+      // его сразу отбрасываем из списка проверяемых.
+
+      // Вектор на месте i содержит все переменные, которые можно подставвить в левую часть
+      // для шаблона с номером i чтобы условие было истинным.
+      std::vector<std::set<size_t>> vSubstArgumentsLeft(countTemplate);
+
+      std::vector<bool> vIsInitialize(countTemplate, false);
+      for (const SPredicateTemplate& predTemp : cond_.left)
+      {
+         const std::vector<std::set<size_t>>& argForPred = mapArgumentsForPred.at(predTemp.idxPredicate);
+         for (size_t idxArg = 0; idxArg < argForPred.size(); ++idxArg)
+         {
+            int argTemp = predTemp.arguments[idxArg];
+            if (argTemp == -1)
+               continue;
+
+            if (!vIsInitialize[argTemp])
+            { // Еще не было для этого шаблона переменных
+               vIsInitialize[argTemp] = true;
+               vSubstArgumentsLeft[argTemp] = argForPred[idxArg];
+            }
+            else
+            { // Уже были добавлены переменные. Нужно взять пересечение уже существующих и новых.
+               // Удаляем из уже существующих все, которых нет в новых.
+               intersection(vSubstArgumentsLeft[argTemp], argForPred[idxArg]);
+            }
+         }
+      }
+
+      // Проверяем, если есть какой-то шаблон, который инициализирован, но при этом нет
+      // ни одной переменной для него, значит левая часть всегда ложна.
+      for (size_t i = 0; i < countTemplate; ++i)
+      {
+         if (vIsInitialize[i] && vSubstArgumentsLeft[i].empty())
+            return { true, false };
+      }
+
+      // Заполняем вектор подставных аргументов для правой части.
+      // Так как в правой части стоит дизъюнкция, нужен хотябы один предикат со значением истинна,
+      // значит рассматриваем все значения переменных для которых хотябы один предикат может принять значение истинна.
+      // Список проверяемых будет всегда расширяться.
+
+      // Вектор на месте i содержит все переменные, которые можно подставвить в правую часть
+      // для шаблона с номером i чтобы условие было истинным.
+      std::vector<std::set<size_t>> vSubstArgumentsRight(countTemplate);
+
+      vIsInitialize.assign(countTemplate, false);
+      for (const SPredicateTemplate& predTemp : cond_.right)
+      {
+         const std::vector<std::set<size_t>>& argForPred = mapArgumentsForPred.at(predTemp.idxPredicate);
+         for (size_t idxArg = 0; idxArg < argForPred.size(); ++idxArg)
+         {
+            int argTemp = predTemp.arguments[idxArg];
+            if (argTemp == -1)
+               continue;
+
+            vIsInitialize[argTemp] = true;
+            vSubstArgumentsRight[argTemp].insert(argForPred[idxArg].begin(), argForPred[idxArg].end());
+         }
+      }
+
+
+
+      // Объединяем два вектора подстановок в один.
+      // Все аргументы которые нашлись для левой части -- должны быть обязательно проверены.
+      // Если в правой части есть ещё какие-то аргументы для того же шаблона, для которого
+      // определены аргументы в левой части, то их можно не рассматривать, так как при них
+      // левая часть не будет истинна, а это значит, что всё выражение будет истинно.
+      // Если какой-то шаблон содержится только в правой части -- это значит,
+      // что он должен быть истинным для всех переменных.
+      for (size_t i = 0; i < countTemplate; ++i)
+      {
+         if (!vSubstArgumentsLeft[i].empty())
+         {
+            // Если правая часть не использует этот шаблон, то все ок.
+            if (vIsInitialize[i])
+            {
+               intersection(vSubstArgumentsRight[i], vSubstArgumentsLeft[i]);
+               if (vSubstArgumentsRight[i].size() != vSubstArgumentsLeft[i].size())
+                  return { false, true };
+            }
+         }
+         else
+         {
+            // Частный случай. В левой части не используется i-ый шабон
+            // Значит, чтобы значение было истинным, оно должно выполняться для всех переменных в правой части.
+            if (vSubstArgumentsRight[i].size() != m_storage.CountVariables())
+            {
+               for (size_t j = 0; j < m_storage.CountVariables(); ++j)
+                  vSubstArgumentsLeft[i].insert(j);
+            }
+            else
+            {
+               vSubstArgumentsLeft[i] = vSubstArgumentsRight[i];
+            }
+         }
+      }
+
+      // Вектор замен аргументов (Переменные на которые имеет смысл провести замену шаблона).
+      const std::vector<std::set<size_t> >& vSubstArguments = vSubstArgumentsLeft;
+
+
+
+      // Полная проверка. Перебераем все истинные значения для левой части, и смотрим на правую.
+      CSubstitution wildcard(vSubstArguments);
+      if (!wildcard.isValid())
+         return { false, false };
+
+      // Формируем вектора, с помощью которых будет осуществляться быстрая проверка.
+      // Это так же нужно для того чтобы отказаться от -1 в аргументе шаблона.
+
+      // Вектор истинности предикатов: На i-ом метсе хранит значение i-го предиката
+      // в одной части условия, в зависимости от аргументов.
+      std::vector<CSparseTruthTable> vTableLeft;
+      std::vector<CSparseTruthTable> vTableRight;
+
+      // Вектор аргументов предикат одной части условия.
+      std::vector<std::vector<size_t>> vTemplArgLeft;
+      std::vector<std::vector<size_t>> vTemplArgRight;
+
+      // Формируем оба ветора для обоих части.
+      if (!getPredicateWithTableAndPredivateWithArg(cond_.left, vTableLeft, vTemplArgLeft, mapArgumentsForPred, vSubstArguments))
+         return { false, false };
+      if (!getPredicateWithTableAndPredivateWithArg(cond_.right, vTableRight, vTemplArgRight, mapArgumentsForPred, vSubstArguments))
+         return { false, false };
+
+      do
+      {
+         bool bTrueForCurrentOne = false;
+         const std::vector<size_t>& vSubstitution = wildcard.getValues();
+
+         // Левая часть.
+         // Ищем аргументы при которых левая часть принимает значение истинна.
+         for (size_t idxPred = 0; idxPred < vTemplArgLeft.size(); ++idxPred)
+         {
+            const std::vector<size_t>& vTempArg = vTemplArgLeft[idxPred];
+
+            std::vector<size_t> vRealArg(vTempArg.size());
+            for (size_t idxArg = 0; idxArg < vTempArg.size(); ++idxArg)
+               vRealArg[idxArg] = vSubstitution[vTempArg[idxArg]];
+
+            if (!vTableLeft[idxPred].hasValue(vRealArg))
+            {
+               bTrueForCurrentOne = true;
+               break;
+            }
+         }
+
+         if (bTrueForCurrentOne)
+            continue;
+
+         // Правая часть.
+         // Ищем аргументы при которых правая часть принимает значение лож.
+         for (size_t idxPred = 0; idxPred < vTemplArgRight.size(); ++idxPred)
+         {
+            const std::vector<size_t>& vTempArg = vTemplArgRight[idxPred];
+
+            std::vector<size_t> vRealArg(vTempArg.size());
+            for (size_t idxArg = 0; idxArg < vTempArg.size(); ++idxArg)
+               vRealArg[idxArg] = vSubstitution[vTempArg[idxArg]];
+
+            if (vTableRight[idxPred].hasValue(vRealArg))
+            {
+               bTrueForCurrentOne = true;
+               break;
+            }
+         }
+
+         if (!bTrueForCurrentOne)
+            return { false, true };
+
+      } while (wildcard.nextValues());
+
+      return { true, true };
+   }
+   catch (std::exception error)
+   {
+      throw CException(error.what(), "Ошибка проверки истинности условия", "CGeneticAlgorithm::IsTrueCondition");
+   }
+}
+
+std::pair<bool, bool> CGeneticAlgorithm::IsTrueConditionOld(const SCondition& cond_) const
 {
    std::vector<SPredicate> vPredLeft, vPredRight;
-   for (auto predTemp : Cond_.left)
+   for (auto predTemp : cond_.left)
       vPredLeft.push_back(m_storage.GetPredicate(predTemp.idxPredicate));
 
-   for (auto predTemp : Cond_.right)
+   for (auto predTemp : cond_.right)
       vPredRight.push_back(m_storage.GetPredicate(predTemp.idxPredicate));
 
    const size_t countVariables = m_storage.CountVariables();
@@ -707,11 +1031,11 @@ std::pair<bool, bool> CGeneticAlgorithm::IsTrueCondition(const SCondition& Cond_
    {
       // Заполняем мапину для предикат имеющих -1 в аргументе.
       std::map<SPredicateTemplate, std::vector<bool>> mapPredAnyArg;
-      if (getPredicatesWithAnyArgument(Cond_, mapPredAnyArg))
+      if (getPredicatesWithAnyArgument(cond_, mapPredAnyArg))
          return { false, false };
 
 
-      CCounterWithoutRepeat<size_t> argCounter(0, countVariables, Cond_.maxArgument + 1);
+      CCounterWithoutRepeat<size_t> argCounter(0, countVariables, cond_.maxArgument + 1);
       const size_t countIteration = argCounter.countIterations();
       bool bLeftPartWasTrue = false;
       bool bRightPartWasFalse = false;
@@ -727,7 +1051,7 @@ std::pair<bool, bool> CGeneticAlgorithm::IsTrueCondition(const SCondition& Cond_
          bool bLeft = true;
          for (size_t i = 0; i < vPredLeft.size(); ++i)
          {
-            const auto& predTempl = Cond_.left[i];
+            const auto& predTempl = cond_.left[i];
             // Ищем в мапине содержащий предикаты с одним или более не зафиксированным аргументом.
             auto it = mapPredAnyArg.find(predTempl);
             if (it != mapPredAnyArg.end())
@@ -782,7 +1106,7 @@ std::pair<bool, bool> CGeneticAlgorithm::IsTrueCondition(const SCondition& Cond_
          bool bRight = false;
          for (size_t i = 0; i < vPredRight.size(); ++i)
          {
-            const auto& predTempl = Cond_.right[i];
+            const auto& predTempl = cond_.right[i];
             // Ищем в мапине содержащий предикаты с одним или более не зафиксированным аргументом.
             auto it = mapPredAnyArg.find(predTempl);
             if (it != mapPredAnyArg.end())
@@ -934,6 +1258,105 @@ bool CGeneticAlgorithm::getPredicatesWithAnyArgument(const SCondition& Cond_, st
    return bHasAnyPred;
 }
 
+bool CGeneticAlgorithm::getPredicateWithTableAndPredivateWithArg(const TPartCondition& partCond_, std::vector<CSparseTruthTable>& truthTable_,
+   std::vector<std::vector<size_t>>& vTemplArgPart_, const std::map<size_t, std::vector<std::set<size_t>>>& mapArgumentsForPred_,
+   const std::vector<std::set<size_t>>& vSubstArguments_) const
+{
+   const size_t countPredicate = partCond_.size();
+   const size_t countVariables = m_storage.CountVariables();
+
+   std::vector<SPredicate> vRealPredicates(countPredicate);
+   for (size_t i = 0; i < countPredicate; ++i)
+      vRealPredicates[i] = m_storage.GetPredicate(partCond_[i].idxPredicate);
+
+   truthTable_.assign(countPredicate, {});
+   vTemplArgPart_.assign(countPredicate, {});
+
+   for (size_t idxPred = 0; idxPred < countPredicate; ++idxPred)
+   {
+      const SPredicateTemplate& predTempl = partCond_[idxPred];
+
+      // Формируем вектор аргументов.
+      const size_t countArg = predTempl.arguments.size();
+      std::vector<std::set<size_t>> vTempSubst;
+      std::vector<bool> vIsAnyTemp(countArg, false);
+      size_t countAnyTemplate = 0;
+
+      for (size_t idxArg = 0; idxArg < countArg; ++idxArg)
+      {
+         int argTemp = predTempl.arguments[idxArg];
+
+         if (argTemp < 0)
+         {
+            ++countAnyTemplate;
+            vIsAnyTemp[idxArg] = true;
+         }
+         else
+         {
+            vTempSubst.push_back(vSubstArguments_[argTemp]);
+            vTemplArgPart_[idxPred].push_back(argTemp);
+         }
+      }
+
+
+      CSubstitution wildcard(vTempSubst);
+      if (!wildcard.isValid())
+         return false;
+
+      const SPredicate& realPredicate = vRealPredicates[idxPred];
+
+      if (countAnyTemplate == 0)
+      {
+         do
+         {
+            size_t indexInTable = realPredicate.GetIndex(countVariables, wildcard.getValues());
+            if (realPredicate.table[indexInTable])
+               truthTable_[idxPred].addValue(wildcard.getValues());
+
+         } while (wildcard.nextValues());
+      }
+      else
+      {
+         std::vector<std::set<size_t>> vTempAnySubs;
+         for (size_t idxArg = 0; idxArg < countArg; ++idxArg)
+         {
+            if (vIsAnyTemp[idxArg])
+               vTempAnySubs.push_back(mapArgumentsForPred_.at(predTempl.idxPredicate)[idxArg]);
+         }
+
+         do
+         {
+            CSubstitution wildcardAnyArg(vTempAnySubs);
+            if (!wildcardAnyArg.isValid())
+               return false;
+
+            const std::vector<size_t>& vSubsNotAnyArg = wildcard.getValues();
+
+            do
+            {
+               const std::vector<size_t>& vSubsAnyArg = wildcardAnyArg.getValues();
+               std::vector<size_t> vRealArg(countArg);
+               size_t idxNotAny = 0, idxAny = 0;
+               for (size_t idxArg = 0; idxArg < countArg; ++idxArg)
+                  vRealArg[idxArg] = vIsAnyTemp[idxArg] ? vSubsAnyArg[idxAny++] : vSubsNotAnyArg[idxNotAny++];
+
+
+               size_t indexInTable = realPredicate.GetIndex(countVariables, vRealArg);
+               if (realPredicate.table.at(indexInTable)) // переделать на [] %%%%%
+               {
+                  truthTable_[idxPred].addValue(vSubsNotAnyArg);
+                  break;
+               }
+
+            } while (wildcardAnyArg.nextValues());
+
+         } while (wildcard.nextValues());
+      }
+   }
+
+   return true;
+}
+
 size_t CGeneticAlgorithm::SelectRandParent() const
 {
    if (m_generation.size() < 2)
@@ -991,6 +1414,13 @@ double CGeneticAlgorithm::FitnessFunction(const TIntegrityLimitation& conds_) co
 
       const double dMultiplierArgs = getMultiplierArguments(count.diffArg, count.totalArg);
       std::pair<bool, bool> correct = IsTrueCondition(conds_.at(iCond));
+      // Для отладки %%%%%
+      std::pair<bool, bool> correctOld = IsTrueConditionOld(conds_.at(iCond));
+      if (correct.first != correctOld.first)
+      {
+         int doNothinc = 1;
+         (void)doNothinc;
+      }
       double fitnesCond = correct.first ? correct.second ? 0. : -0.75 : -1.;
       fitnesCond += dMultiplierArgs * count.matchPred;
       fitnesCond += m_costAddingPredicate * count.addedPred;

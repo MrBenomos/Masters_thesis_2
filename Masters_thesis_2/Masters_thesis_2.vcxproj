@@ -105,6 +105,7 @@
   <ItemGroup>
     <ClCompile Include="parser_template_predicates.cpp" />
     <ClCompile Include="predicate.cpp" />
+    <ClCompile Include="sparse_truth_table.cpp" />
     <ClCompile Include="viewer.cpp" />
     <QtRcc Include="main_widget.qrc" />
     <QtUic Include="main_widget.ui" />
@@ -115,6 +116,7 @@
     <QtUic Include="viewer.ui" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="sparse_truth_table.h" />
     <QtMoc Include="viewer.h" />
     <QtMoc Include="genetic_algorithm.h" />
     <ClInclude Include="counter.h" />
