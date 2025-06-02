@@ -1350,7 +1350,18 @@ bool CGeneticAlgorithm::getTruthTableAndArgumentsForPredicate(const SPredicateTe
       }
       else
       {
-         vTempSubst.push_back(vWildcardArgsForTemp_[argTemp]);
+         if (vWildcardArgsForTemp_[argTemp].size() > vRealArgsForPred_[idxArg].size())
+         {
+            std::set<size_t> setArg = vWildcardArgsForTemp_[argTemp];
+            intersection(setArg, vRealArgsForPred_[idxArg]);
+            vTempSubst.push_back(setArg);
+         }
+         else
+         {
+            vTempSubst.push_back(vWildcardArgsForTemp_[argTemp]);
+         }
+
+         
          vTemplArgs_.push_back(argTemp);
       }
    }
@@ -1480,7 +1491,7 @@ double CGeneticAlgorithm::FitnessFunction(TIntegrityLimitation& conds_) const
       fitnesCurrCond += m_costAddingPredicate * count.addedPred;
       fitnesCurrCond /= count.matchPred + count.addedPred + count.deletedPred;
       // Штраф за использование одиночных аргументов.
-      fitnesCurrCond -= (0.01 / (currentCond.maxArgument + 1)) * countSingleArguments(currentCond);
+      fitnesCurrCond -= (0.001 / (currentCond.maxArgument + 1)) * countSingleArguments(currentCond);
 
       if (fitnesCurrCond < -1.)
          fitnesCurrCond = -1.;
