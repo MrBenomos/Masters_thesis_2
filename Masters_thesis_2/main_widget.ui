@@ -20,7 +20,7 @@
       <property name="title">
        <string>Параметры алгоритма</string>
       </property>
-      <layout class="QVBoxLayout" name="verticalLayout">
+      <layout class="QVBoxLayout" name="verticalLayout_3">
        <item>
         <layout class="QHBoxLayout" name="horizontalLayout">
          <item>
@@ -112,14 +112,25 @@
           </layout>
          </item>
          <item>
-          <widget class="QCheckBox" name="cbBoost">
-           <property name="toolTip">
-            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Ускоряет сходимость для нескольких условий.&lt;/p&gt;&lt;p&gt;Фитнес считается отдельно для каждого условия, а не ограничения, на этапе замены будут отбираться лучшие условия, а не ограничения в общем.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-           </property>
-           <property name="text">
-            <string>Ускорить сходимость</string>
-           </property>
-          </widget>
+          <layout class="QVBoxLayout" name="verticalLayout">
+           <item>
+            <widget class="QCheckBox" name="cbRunTime">
+             <property name="text">
+              <string>Показывать время выполнения</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QCheckBox" name="cbBoost">
+             <property name="toolTip">
+              <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Ускоряет сходимость для нескольких условий.&lt;/p&gt;&lt;p&gt;Фитнес считается отдельно для каждого условия, а не ограничения, на этапе замены будут отбираться лучшие условия, а не ограничения в общем.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+             </property>
+             <property name="text">
+              <string>Ускорить сходимость</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
          </item>
          <item>
           <spacer name="horizontalSpacer_2">
@@ -128,8 +139,8 @@
            </property>
            <property name="sizeHint" stdset="0">
             <size>
-             <width>40</width>
-             <height>20</height>
+             <width>13</width>
+             <height>53</height>
             </size>
            </property>
           </spacer>

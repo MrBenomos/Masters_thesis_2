@@ -7,6 +7,35 @@
 #include "viewer.h"
 #include "exception.h"
 
+constexpr quint64 MS_IN_SEC = 1000;
+constexpr quint64 MS_IN_MIN = MS_IN_SEC * 60;
+constexpr quint64 MS_IN_HOUR = MS_IN_MIN * 60;
+
+static QString GetStringRunTime(quint64 milleseconds_)
+{
+   quint32 seconds = milleseconds_ / MS_IN_SEC;
+   quint32 minutes = milleseconds_ / MS_IN_MIN;
+   quint16 hours = milleseconds_ / MS_IN_HOUR;
+
+   QString sRunTime;
+   if (hours > 0)
+      sRunTime.append(QString::number(hours) + ':');
+   if (minutes > 0)
+      sRunTime.append(QString::number(minutes % 60) + ':');
+   if (seconds > 0)
+      sRunTime.append(QString::number(seconds % 60));
+   else
+      sRunTime.append('0');
+
+   sRunTime.append('.');
+   sRunTime.append(QString::number(milleseconds_ % 1000));
+
+   if (minutes == 0)
+      sRunTime.append(" c");
+
+   return sRunTime;
+}
+
 MainWidget::MainWidget(QWidget *parent) :
     QMainWindow(parent), ui(new Ui::MainWidgetClass())
 {
@@ -38,6 +67,23 @@ MainWidget::~MainWidget()
 
 void MainWidget::onLoad()
 {
+   if (ui->cbRunTime->isChecked())
+   {
+      quint64 avg = 0;
+      if (m_vRunTime.size() > 0)
+      {
+         for (quint64 runTime : m_vRunTime)
+            avg += runTime;
+
+         avg /= m_vRunTime.size();
+      }
+
+      QMessageBox::information(this, tr("Время выполнения"),
+         tr("Среднее время выполнения по результатам %1 запусков: %2.").arg(m_vRunTime.size()).arg(GetStringRunTime(avg)));
+   }
+
+   m_vRunTime.clear();
+
    QString path = QFileDialog::getOpenFileName(this, "Выберите файл для загрузки данных", "", "Текстовые файлы (*.txt)");
    if (!path.isEmpty())
    {
@@ -119,6 +165,20 @@ void MainWidget::onShowError(const CException& messege_)
 
 void MainWidget::onEndingCalc(bool bSuccess_)
 {
+   if (m_timer.isValid())
+   {
+      m_vRunTime.push_back(m_timer.elapsed());
+      m_timer.invalidate();
+
+      if (ui->cbRunTime->isChecked())
+         QMessageBox::information(this, tr("Время выполнения"), tr("Расчет занял: %1.").arg(GetStringRunTime(m_vRunTime.back())));
+   }
+   else
+   {
+      QMessageBox::warning(this, tr("Время выполнения"),
+         tr("Не удалось вычислить время расчета: отсутствует отметка времени начала расчета."));
+   }
+
    if (bSuccess_)
       ui->pbContinue->setVisible(true);
 
@@ -162,5 +222,6 @@ void MainWidget::runAlgorithm(bool bContinue_)
    connect(thread, &QThread::finished, thread, &QThread::deleteLater);
    connect(&m_algorithm, &CGeneticAlgorithm::signalEnd, thread, &QThread::quit);
 
+   m_timer.start();
    thread->start();
 }

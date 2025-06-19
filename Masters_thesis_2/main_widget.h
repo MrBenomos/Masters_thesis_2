@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QtWidgets/QMainWindow>
+#include <QElapsedTimer>
 #include "ui_main_widget.h"
 #include "genetic_algorithm.h"
 
@@ -41,4 +42,6 @@ private:
    QString m_sOutput;
    Ui::MainWidgetClass* ui;
    CViewer* m_dlgViewer = nullptr;
+   QElapsedTimer m_timer;
+   std::vector<quint64> m_vRunTime;
 };
